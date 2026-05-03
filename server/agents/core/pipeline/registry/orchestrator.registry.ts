@@ -1,0 +1,662 @@
+export type OrchestratorDomain =
+  | 'generation'
+  | 'intelligence'
+  | 'security'
+  | 'observability'
+  | 'devops'
+  | 'infrastructure'
+  | 'core-support'
+  | 'data'
+  | 'realtime'
+  | 'platform-services';
+
+export interface OrchestratorEntry {
+  readonly id: string;
+  readonly domain: OrchestratorDomain;
+  readonly capabilities: readonly string[];
+  readonly description: string;
+  readonly run: (input: unknown) => Promise<unknown>;
+}
+
+type Loader = () => Promise<OrchestratorEntry['run']>;
+
+function wrap(id: string, domain: OrchestratorDomain, caps: string[], desc: string, loader: Loader): OrchestratorEntry {
+  return {
+    id, domain,
+    capabilities: Object.freeze(caps),
+    description: desc,
+    run: async (input: unknown) => {
+      const fn = await loader();
+      return fn(input);
+    },
+  };
+}
+
+// ─── GENERATION — Backend (10) ────────────────────────────────────────────────
+const generationBackend: OrchestratorEntry[] = [
+  wrap('backend-gen:auth', 'generation', ['auth', 'authentication', 'jwt', 'login', 'oauth'],
+    'Generates full auth module with JWT/OAuth',
+    async () => { const m = await import('../../../generation/backend-gen/auth-generator/orchestrator.ts'); return (i: any) => m.generateAuthModule(i); }),
+
+  wrap('backend-gen:controller', 'generation', ['controller', 'handler', 'endpoint', 'crud'],
+    'Generates REST controllers',
+    async () => { const m = await import('../../../generation/backend-gen/controller-generator/orchestrator.ts'); return (i: any) => m.generateController(i); }),
+
+  wrap('backend-gen:model', 'generation', ['model', 'schema', 'entity', 'database-model'],
+    'Generates data models',
+    async () => { const m = await import('../../../generation/backend-gen/model-generator/orchestrator.ts'); return (i: any) => m.generateModel(i); }),
+
+  wrap('backend-gen:service', 'generation', ['service', 'business-logic', 'use-case'],
+    'Generates service layer',
+    async () => { const m = await import('../../../generation/backend-gen/service-generator/orchestrator.ts'); return (i: any) => m.generateService(i); }),
+
+  wrap('backend-gen:route', 'generation', ['route', 'api', 'rest', 'endpoint', 'path'],
+    'Generates API routes',
+    async () => { const m = await import('../../../generation/backend-gen/route-generator/orchestrator.ts'); return (i: any) => m.generateRoute(i); }),
+
+  wrap('backend-gen:middleware', 'generation', ['middleware', 'interceptor', 'guard', 'pipe'],
+    'Generates Express middleware',
+    async () => { const m = await import('../../../generation/backend-gen/middleware-generator/orchestrator.ts'); return (i: any) => m.generateMiddleware(i); }),
+
+  wrap('backend-gen:migration', 'generation', ['migration', 'db-migration', 'alter-table', 'schema-change'],
+    'Generates database migrations',
+    async () => { const m = await import('../../../generation/backend-gen/migration-generator/orchestrator.ts'); return (i: any) => m.generateMigration(i); }),
+
+  wrap('backend-gen:env', 'generation', ['env', 'environment', 'config', 'dotenv'],
+    'Generates .env config setup',
+    async () => { const m = await import('../../../generation/backend-gen/env-configurator/orchestrator.ts'); return (i: any) => m.generateEnvConfig(i); }),
+
+  wrap('backend-gen:api-doc', 'generation', ['api-doc', 'swagger', 'openapi', 'documentation'],
+    'Generates API documentation',
+    async () => { const m = await import('../../../generation/backend-gen/api-doc-generator/orchestrator.ts'); return (i: any) => m.generateApiDocs(i); }),
+
+  wrap('backend-gen:test', 'generation', ['test', 'unit-test', 'integration-test', 'spec', 'backend-test'],
+    'Generates backend tests',
+    async () => { const m = await import('../../../generation/backend-gen/test-generator/orchestrator.ts'); return (i: any) => m.generateTests(i); }),
+];
+
+// ─── GENERATION — Frontend (7) ────────────────────────────────────────────────
+const generationFrontend: OrchestratorEntry[] = [
+  wrap('frontend-gen:component', 'generation', ['component', 'ui', 'react', 'vue', 'widget'],
+    'Generates frontend components',
+    async () => { const m = await import('../../../generation/frontend-gen/component-generator/orchestrator.ts'); return (i: any) => m.generateComponent(i); }),
+
+  wrap('frontend-gen:page', 'generation', ['page', 'view', 'screen', 'layout'],
+    'Generates full pages',
+    async () => { const m = await import('../../../generation/frontend-gen/page-generator/orchestrator.ts'); return (i: any) => m.generatePage(i); }),
+
+  wrap('frontend-gen:form', 'generation', ['form', 'input', 'validation-form', 'submit'],
+    'Generates form components',
+    async () => { const m = await import('../../../generation/frontend-gen/form-generator/orchestrator.ts'); return (i: any) => m.generateForm(i); }),
+
+  wrap('frontend-gen:style', 'generation', ['style', 'css', 'tailwind', 'theme', 'design'],
+    'Generates styles and themes',
+    async () => { const m = await import('../../../generation/frontend-gen/style-generator/orchestrator.ts'); return (i: any) => m.generateStyle(i); }),
+
+  wrap('frontend-gen:state', 'generation', ['state', 'redux', 'zustand', 'store', 'context'],
+    'Generates state management',
+    async () => { const m = await import('../../../generation/frontend-gen/state-management-generator/orchestrator.ts'); return (i: any) => m.generateStateManagement(i); }),
+
+  wrap('frontend-gen:api-client', 'generation', ['api-client', 'fetch', 'axios', 'http-client'],
+    'Generates API client layer',
+    async () => { const m = await import('../../../generation/frontend-gen/api-client/orchestrator.ts'); return (i: any) => m.generateApiClient(i); }),
+
+  wrap('frontend-gen:test', 'generation', ['frontend-test', 'jest', 'vitest', 'cypress', 'e2e'],
+    'Generates frontend tests',
+    async () => { const m = await import('../../../generation/frontend-gen/test-generator/orchestrator.ts'); return (i: any) => m.generateFrontendTests(i); }),
+];
+
+// ─── GENERATION — Mobile (11) ─────────────────────────────────────────────────
+const generationMobile: OrchestratorEntry[] = [
+  wrap('mobile:rn-component', 'generation', ['react-native', 'mobile', 'rn-component'],
+    'Generates React Native components',
+    async () => { const m = await import('../../../generation/mobile/rn-core/component-generator/orchestrator.ts'); return (i: any) => m.generateReactNativeComponent(i); }),
+
+  wrap('mobile:rn-navigation', 'generation', ['navigation', 'react-navigation', 'stack', 'tab'],
+    'Generates RN navigation',
+    async () => { const m = await import('../../../generation/mobile/rn-core/navigation-generator/orchestrator.ts'); return (i: any) => m.generateNavigation(i); }),
+
+  wrap('mobile:rn-storage', 'generation', ['async-storage', 'mobile-storage', 'rn-storage'],
+    'Generates RN storage layer',
+    async () => { const m = await import('../../../generation/mobile/rn-core/storage-agent/orchestrator.ts'); return (i: any) => m.generateStorage(i); }),
+
+  wrap('mobile:rn-camera', 'generation', ['camera', 'photo', 'barcode', 'scanner'],
+    'Generates RN camera feature',
+    async () => { const m = await import('../../../generation/mobile/rn-core/camera-agent/orchestrator.ts'); return (i: any) => m.generateCamera(i); }),
+
+  wrap('mobile:rn-geo', 'generation', ['geolocation', 'gps', 'location', 'maps'],
+    'Generates RN geolocation feature',
+    async () => { const m = await import('../../../generation/mobile/rn-core/geolocation-agent/orchestrator.ts'); return (i: any) => m.generateGeolocation(i); }),
+
+  wrap('mobile:rn-biometric', 'generation', ['biometric', 'fingerprint', 'face-id', 'touch-id'],
+    'Generates RN biometric auth',
+    async () => { const m = await import('../../../generation/mobile/rn-core/biometric-auth-agent/orchestrator.ts'); return (i: any) => m.generateBiometricAuth(i); }),
+
+  wrap('mobile:android-nav', 'generation', ['android-nav', 'android-navigation', 'jetpack-nav'],
+    'Generates Android Jetpack navigation',
+    async () => { const m = await import('../../../generation/mobile/android/navigation/orchestrator.ts'); return (i: any) => m.generateAndroidNavigation(i); }),
+
+  wrap('mobile:android-networking', 'generation', ['retrofit', 'android-networking', 'kotlin-http'],
+    'Generates Android Retrofit networking',
+    async () => { const m = await import('../../../generation/mobile/android/networking/kotlin-retrofit/orchestrator.ts'); return (i: any) => m.generateRetrofit(i); }),
+
+  wrap('mobile:android-viewmodel', 'generation', ['viewmodel', 'android-viewmodel', 'livedata', 'kotlin'],
+    'Generates Android ViewModel',
+    async () => { const m = await import('../../../generation/mobile/android/viewmodel/kotlin-viewmodel-generator/orchestrator.ts'); return (i: any) => m.generateViewModel(i); }),
+
+  wrap('mobile:ios-networking', 'generation', ['ios-networking', 'urlsession', 'swift-http'],
+    'Generates iOS networking layer',
+    async () => { const m = await import('../../../generation/mobile/ios-native/networking/orchestrator.ts'); return (i: any) => m.generateIOSNetworking(i); }),
+
+  wrap('mobile:ios-swiftui', 'generation', ['swiftui', 'ios-ui', 'swift-view'],
+    'Generates SwiftUI views',
+    async () => { const m = await import('../../../generation/mobile/ios-native/ui/swiftui-view-generator/orchestrator.ts'); return (i: any) => m.generateSwiftUIView(i); }),
+];
+
+// ─── GENERATION — Database, GraphQL, PWA, Code, Routing (13) ─────────────────
+const generationOther: OrchestratorEntry[] = [
+  wrap('db:prisma', 'generation', ['prisma', 'prisma-schema', 'postgres', 'orm'],
+    'Generates Prisma schema',
+    async () => { const m = await import('../../../generation/database/prisma-schema-generator/orchestrator.ts'); return (i: any) => m.generatePrismaSchema(i); }),
+
+  wrap('db:mongoose', 'generation', ['mongoose', 'mongodb', 'nosql', 'document'],
+    'Generates Mongoose schema',
+    async () => { const m = await import('../../../generation/database/mongoose-schema-generator/orchestrator.ts'); return (i: any) => m.generateMongooseSchema(i); }),
+
+  wrap('graphql:schema', 'generation', ['graphql', 'gql-schema', 'type-defs'],
+    'Generates GraphQL schema',
+    async () => { const m = await import('../../../generation/graphql/schema-generator/orchestrator.ts'); return (i: any) => m.generateGraphQLSchema(i); }),
+
+  wrap('graphql:resolver', 'generation', ['resolver', 'graphql-resolver', 'query', 'mutation'],
+    'Generates GraphQL resolvers',
+    async () => { const m = await import('../../../generation/graphql/resolver-generator/orchestrator.ts'); return (i: any) => m.generateResolvers(i); }),
+
+  wrap('pwa:service-worker', 'generation', ['pwa', 'service-worker', 'offline', 'progressive-web'],
+    'Generates PWA service worker',
+    async () => { const m = await import('../../../generation/pwa-gen/service-worker-generator/orchestrator.ts'); return (i: any) => m.generateServiceWorker(i); }),
+
+  wrap('pwa:manifest', 'generation', ['manifest', 'web-manifest', 'pwa-manifest'],
+    'Generates PWA manifest',
+    async () => { const m = await import('../../../generation/pwa-gen/manifest-generator/orchestrator.ts'); return (i: any) => m.generateManifest(i); }),
+
+  wrap('pwa:app-shell', 'generation', ['app-shell', 'pwa-shell', 'shell-architecture'],
+    'Generates PWA app shell',
+    async () => { const m = await import('../../../generation/pwa-gen/app-shell-generator/orchestrator.ts'); return (i: any) => m.generateAppShell(i); }),
+
+  wrap('pwa:offline', 'generation', ['offline-strategy', 'cache-strategy', 'workbox'],
+    'Generates offline caching strategy',
+    async () => { const m = await import('../../../generation/pwa-gen/offline-strategy/orchestrator.ts'); return (i: any) => m.generateOfflineStrategy(i); }),
+
+  wrap('pwa:push-notification', 'generation', ['push-notification', 'web-push', 'notification'],
+    'Generates web push notifications',
+    async () => { const m = await import('../../../generation/pwa-gen/push-notification-web/orchestrator.ts'); return (i: any) => m.generatePushNotification(i); }),
+
+  wrap('pwa:install-prompt', 'generation', ['install-prompt', 'pwa-install', 'add-to-home'],
+    'Generates PWA install prompt',
+    async () => { const m = await import('../../../generation/pwa-gen/install-prompt/orchestrator.ts'); return (i: any) => m.generateInstallPrompt(i); }),
+
+  wrap('code-gen:general', 'generation', ['code-generation', 'generate-code', 'scaffold'],
+    'General code generator',
+    async () => { const m = await import('../../../generation/code-gen/orchestrator.ts'); const inst = new m.CodeGenOrchestrator(); return (i: any) => inst.generate(i); }),
+
+  wrap('code-gen:file-writer', 'generation', ['write-file', 'file-output', 'save-code'],
+    'Writes generated code to files',
+    async () => { const m = await import('../../../generation/code-gen/file-writer/orchestrator.ts'); return (i: any) => m.writeFiles(i); }),
+
+  wrap('generation:routing', 'generation', ['routing', 'router', 'path-mapping'],
+    'Generates routing configuration',
+    async () => { const m = await import('../../../generation/routing-generator/orchestrator.ts'); return (i: any) => m.generateRouting(i); }),
+];
+
+// ─── INTELLIGENCE (19 standalone) ────────────────────────────────────────────
+const intelligence: OrchestratorEntry[] = [
+  wrap('intel:meta-reasoning', 'intelligence', ['meta-reasoning', 'self-check', 'think', 'reasoning'],
+    'Verifies AI reasoning quality',
+    async () => { const m = await import('../../../intelligence/meta-reasoning/orchestrator.ts'); return (i: any) => m.runMetaReasoning(i); }),
+
+  wrap('intel:capability-discovery', 'intelligence', ['capability', 'agent-discovery', 'what-can-i-do'],
+    'Discovers available agent capabilities',
+    async () => { const m = await import('../../../intelligence/capability-intelligence/discovery/orchestrator.ts'); return (i: any) => m.runDiscovery(i); }),
+
+  wrap('intel:capability-agent', 'intelligence', ['agent-capability', 'capability-check'],
+    'Checks agent capability match',
+    async () => { const m = await import('../../../intelligence/capability-intelligence/agent-capability/orchestrator.ts'); return (i: any) => m.checkAgentCapability(i); }),
+
+  wrap('intel:global-observer', 'intelligence', ['observe', 'monitor', 'watch', 'activity'],
+    'Observes system activity',
+    async () => { const m = await import('../../../intelligence/observation/global-observer/orchestrator.ts'); return (i: any) => m.observe(i); }),
+
+  wrap('intel:self-improvement', 'intelligence', ['self-improve', 'learn', 'adapt', 'optimize-self'],
+    'Triggers AI self-improvement cycle',
+    async () => { const m = await import('../../../intelligence/self-improvement/orchestrator.ts'); return (i: any) => m.runSelfImprovement(i); }),
+
+  wrap('intel:experimentation', 'intelligence', ['experiment', 'ab-test', 'trial', 'hypothesis'],
+    'Runs experimentation analysis',
+    async () => { const m = await import('../../../intelligence/experimentation/orchestrator.ts'); return (i: any) => m.runExperimentation(i); }),
+
+  wrap('intel:priority', 'intelligence', ['priority', 'rank', 'importance', 'prioritize'],
+    'Prioritizes tasks and issues',
+    async () => { const m = await import('../../../intelligence/priority/orchestrator.ts'); return (i: any) => m.runPriorityAnalysis(i); }),
+
+  wrap('intel:optimization', 'intelligence', ['optimize', 'performance-tune', 'efficiency'],
+    'Optimization intelligence analysis',
+    async () => { const m = await import('../../../intelligence/optimization-intelligence/orchestrator.ts'); return (i: any) => m.runOptimization(i); }),
+
+  wrap('intel:framework-optimizer', 'intelligence', ['framework-optimize', 'framework-choice'],
+    'Optimizes framework selection',
+    async () => { const m = await import('../../../intelligence/framework-optimizer/orchestrator.ts'); return (i: any) => m.runFrameworkOptimizer(i); }),
+
+  wrap('intel:framework-pattern', 'intelligence', ['framework-pattern', 'pattern-match', 'best-practice'],
+    'Detects framework patterns',
+    async () => { const m = await import('../../../intelligence/framework-pattern-engine/orchestrator.ts'); return (i: any) => m.runFrameworkPatternEngine(i); }),
+
+  wrap('intel:framework-runtime', 'intelligence', ['runtime-analysis', 'framework-runtime'],
+    'Analyzes framework runtime behavior',
+    async () => { const m = await import('../../../intelligence/framework-runtime-analyzer/orchestrator.ts'); return (i: any) => m.analyzeRuntime(i); }),
+
+  wrap('intel:frontend-testing', 'intelligence', ['frontend-testing-intel', 'test-strategy'],
+    'Frontend testing intelligence',
+    async () => { const m = await import('../../../intelligence/frontend-intelligence/testing/orchestrator.ts'); return (i: any) => m.runFrontendTestingIntelligence(i); }),
+
+  wrap('intel:backend-cross', 'intelligence', ['cross-intelligence', 'backend-analysis'],
+    'Cross-domain backend intelligence',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/cross-intelligence/orchestrator.ts'); const inst = new m.CrossIntelligenceOrchestrator(); return (i: any) => inst.analyze(i); }),
+
+  wrap('intel:backend-consistency', 'intelligence', ['consistency', 'backend-consistency'],
+    'Backend consistency analysis',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/intelligence/consistency/orchestrator.ts'); return (i: any) => m.runConsistencyAnalysis(i); }),
+
+  wrap('intel:backend-context', 'intelligence', ['backend-context', 'context-analysis'],
+    'Backend context analysis',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/intelligence/context/orchestrator.ts'); return (i: any) => m.runContextAnalysis(i); }),
+
+  wrap('intel:backend-quality', 'intelligence', ['code-quality', 'quality-analysis'],
+    'Backend code quality analysis',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/intelligence/quality/orchestrator.ts'); return (i: any) => m.runQualityAnalysis(i); }),
+
+  wrap('intel:backend-recommendation', 'intelligence', ['recommendation', 'suggest', 'advice'],
+    'Backend recommendations',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/intelligence/recommendation/orchestrator.ts'); return (i: any) => m.runRecommendation(i); }),
+
+  wrap('intel:backend-report', 'intelligence', ['report', 'summary', 'backend-report'],
+    'Backend intelligence report',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/intelligence/report/orchestrator.ts'); return (i: any) => m.generateReport(i); }),
+
+  wrap('intel:issue-priority', 'intelligence', ['issue-priority', 'bug-priority', 'issue-rank'],
+    'Issue prioritization',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/issue-prioritizer/priority/orchestrator.ts'); return (i: any) => m.prioritizeIssues(i); }),
+
+  wrap('intel:issue-strategy', 'intelligence', ['fix-strategy', 'resolution-strategy'],
+    'Issue resolution strategy',
+    async () => { const m = await import('../../../intelligence/backend-intelligence/issue-prioritizer/strategy/orchestrator.ts'); return (i: any) => m.buildResolutionStrategy(i); }),
+
+  wrap('intel:core-planning', 'intelligence', ['core-plan', 'task-plan'],
+    'Core task planning',
+    async () => { const m = await import('../../../intelligence/planning/planner/Core-Planning/orchestrator.ts'); return (i: any) => m.createPlan(i); }),
+
+  wrap('intel:intelligence-layer', 'intelligence', ['refine-goal', 'goal-refinement'],
+    'Goal refinement layer',
+    async () => { const m = await import('../../../intelligence/planning/planner/Intelligence-Layer/orchestrator.ts'); return (i: any) => m.refine(i); }),
+];
+
+// ─── INTELLIGENCE — Architecture (14) ────────────────────────────────────────
+const architectureIntel: OrchestratorEntry[] = [
+  wrap('arch:complexity', 'intelligence', ['complexity-analysis', 'code-complexity', 'cyclomatic'],
+    'Code complexity analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/code-quality/complexity-analysis/orchestrator.ts'); return (i: any) => m.analyzeComplexity(i); }),
+
+  wrap('arch:dead-code', 'intelligence', ['dead-code', 'unused-code', 'unreachable'],
+    'Dead code analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/code-quality/dead-code-analysis/orchestrator.ts'); return (i: any) => m.analyzeDeadCode(i); }),
+
+  wrap('arch:observability-analysis', 'intelligence', ['observability-analysis', 'telemetry-analysis'],
+    'Observability analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/code-quality/observability-analysis/orchestrator.ts'); return (i: any) => m.analyzeObservability(i); }),
+
+  wrap('arch:performance', 'intelligence', ['performance-analysis', 'perf-audit', 'bottleneck'],
+    'Performance analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/code-quality/performance-analysis/orchestrator.ts'); return (i: any) => m.analyzePerformance(i); }),
+
+  wrap('arch:api-contract', 'intelligence', ['api-contract', 'contract-analysis', 'api-compatibility'],
+    'API contract analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/data-and-api/api-contract-analysis/orchestrator.ts'); return (i: any) => m.analyzeApiContract(i); }),
+
+  wrap('arch:db-schema', 'intelligence', ['schema-analysis', 'database-architecture'],
+    'Database schema analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/data-and-api/database-schema-analysis/orchestrator.ts'); return (i: any) => m.analyzeSchema(i); }),
+
+  wrap('arch:evolution', 'intelligence', ['evolution', 'migration-plan', 'upgrade-path'],
+    'Architecture evolution planning',
+    async () => { const m = await import('../../../intelligence/planning/architecture/engine/evolution/orchestrator.ts'); return (i: any) => m.planEvolution(i); }),
+
+  wrap('arch:security-analysis', 'intelligence', ['security-analysis', 'vulnerability', 'threat'],
+    'Security architecture analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/security/security-analysis/orchestrator.ts'); return (i: any) => m.analyzeSecurityArchitecture(i); }),
+
+  wrap('arch:boundary', 'intelligence', ['boundary-analysis', 'module-boundary', 'separation'],
+    'Module boundary analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/structural/boundary-analysis/orchestrator.ts'); return (i: any) => m.analyzeBoundaries(i); }),
+
+  wrap('arch:dependency', 'intelligence', ['dependency-analysis', 'dep-graph', 'coupling'],
+    'Dependency analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/structural/dependency-analysis/orchestrator.ts'); return (i: any) => m.analyzeDependencies(i); }),
+
+  wrap('arch:hvp', 'intelligence', ['hvp-analysis', 'layer-analysis', 'architecture-layers'],
+    'HVP layer analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/structural/hvp-analysis/orchestrator.ts'); return (i: any) => m.analyzeHVP(i); }),
+
+  wrap('arch:pattern-detection', 'intelligence', ['pattern-detection', 'design-pattern', 'anti-pattern'],
+    'Design pattern detection',
+    async () => { const m = await import('../../../intelligence/planning/architecture/structural/pattern-detection/orchestrator.ts'); return (i: any) => m.detectPatterns(i); }),
+
+  wrap('arch:responsibility', 'intelligence', ['responsibility', 'srp', 'single-responsibility'],
+    'Responsibility analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/structural/responsibility-analysis/orchestrator.ts'); return (i: any) => m.analyzeResponsibility(i); }),
+
+  wrap('arch:test-architecture', 'intelligence', ['test-architecture', 'test-coverage-analysis'],
+    'Test architecture analysis',
+    async () => { const m = await import('../../../intelligence/planning/architecture/testing/test-architecture-analysis/orchestrator.ts'); return (i: any) => m.analyzeTestArchitecture(i); }),
+];
+
+// ─── SECURITY (6) ─────────────────────────────────────────────────────────────
+const security: OrchestratorEntry[] = [
+  wrap('security:global-safety', 'security', ['safety', 'global-safety', 'content-safety'],
+    'Global safety check for all inputs',
+    async () => { const m = await import('../../../security/global-safety/orchestrator.ts'); return (i: any) => m.runGlobalSafetyCheck(i); }),
+
+  wrap('security:input-sanitizer', 'security', ['sanitize', 'input-sanitize', 'xss', 'injection'],
+    'Sanitizes all inputs',
+    async () => { const m = await import('../../../security/input-sanitizer/orchestrator.ts'); return (i: any) => m.sanitizeInput(i); }),
+
+  wrap('security:rate-limiter', 'security', ['rate-limit', 'throttle', 'quota'],
+    'Rate limiting',
+    async () => { const m = await import('../../../security/rate-limiter/orchestrator.ts'); return (i: any) => m.runRateLimiter(i); }),
+
+  wrap('security:api-key', 'security', ['api-key', 'key-management', 'token-management'],
+    'API key management',
+    async () => { const m = await import('../../../security/api-key-manager/orchestrator.ts'); return (i: any) => m.manageApiKey(i); }),
+
+  wrap('security:oauth2', 'security', ['oauth2', 'oauth', 'sso', 'openid'],
+    'OAuth2 provider',
+    async () => { const m = await import('../../../security/oauth2-provider/orchestrator.ts'); return (i: any) => m.runOAuth2(i); }),
+
+  wrap('security:mfa', 'security', ['mfa', '2fa', 'totp', 'multi-factor'],
+    'Multi-factor authentication',
+    async () => { const m = await import('../../../security/mfa/orchestrator.ts'); return (i: any) => m.runMFA(i); }),
+];
+
+// ─── OBSERVABILITY (4) ────────────────────────────────────────────────────────
+const observability: OrchestratorEntry[] = [
+  wrap('obs:health', 'observability', ['health', 'liveness', 'readiness', 'health-check'],
+    'Health monitoring',
+    async () => { const m = await import('../../../observability/health/orchestrator.ts'); return (i: any) => m.runHealthCheck(i); }),
+
+  wrap('obs:logger', 'observability', ['logging', 'logger', 'log-setup'],
+    'Logger configuration',
+    async () => { const m = await import('../../../observability/logger-setup/orchestrator.ts'); return (i: any) => m.setupLogger(i); }),
+
+  wrap('obs:opentelemetry', 'observability', ['opentelemetry', 'otel', 'tracing', 'spans'],
+    'OpenTelemetry tracing',
+    async () => { const m = await import('../../../observability/opentelemetry/orchestrator.ts'); return (i: any) => m.setupOpenTelemetry(i); }),
+
+  wrap('obs:prometheus', 'observability', ['prometheus', 'metrics', 'grafana', 'monitoring'],
+    'Prometheus metrics',
+    async () => { const m = await import('../../../observability/prometheus-metrics/orchestrator.ts'); return (i: any) => m.setupPrometheus(i); }),
+];
+
+// ─── DEVOPS (3) ───────────────────────────────────────────────────────────────
+const devops: OrchestratorEntry[] = [
+  wrap('devops:docker-compose', 'devops', ['docker-compose', 'compose', 'multi-container'],
+    'Docker Compose generation',
+    async () => { const m = await import('../../../devops/docker-compose-generator/orchestrator.ts'); return (i: any) => m.generateCompose(i); }),
+
+  wrap('devops:github-actions', 'devops', ['github-actions', 'ci-cd', 'pipeline', 'workflow-yaml'],
+    'GitHub Actions CI/CD generation',
+    async () => { const m = await import('../../../devops/github-actions-generator/orchestrator.ts'); return (i: any) => m.generateGitHubActions(i); }),
+
+  wrap('devops:env-validator', 'devops', ['env-validate', 'environment-check', 'config-validate'],
+    'Environment variable validation',
+    async () => { const m = await import('../../../devops/env-pipeline-validator/orchestrator.ts'); return (i: any) => m.validateEnvPipeline(i); }),
+];
+
+// ─── INFRASTRUCTURE (3) ───────────────────────────────────────────────────────
+const infrastructure: OrchestratorEntry[] = [
+  wrap('infra:deploy', 'infrastructure', ['deploy', 'deployment', 'release', 'ship'],
+    'Full deployment orchestration',
+    async () => { const m = await import('../../../infrastructure/deploy/orchestrator.ts'); const inst = new m.DeploymentOrchestrator(); return (i: any) => inst.deploy(i); }),
+
+  wrap('infra:docker-config', 'infrastructure', ['dockerfile', 'docker-build', 'container-config'],
+    'Docker configuration',
+    async () => { const m = await import('../../../infrastructure/deploy/docker-configurator/orchestrator.ts'); return (i: any) => m.configureDocker(i); }),
+
+  wrap('infra:git', 'infrastructure', ['git', 'version-control', 'commit', 'branch', 'merge'],
+    'Git operations',
+    async () => { const m = await import('../../../infrastructure/git/orchestrator.ts'); return (i: any) => m.runGitOperation(i); }),
+];
+
+// ─── CORE-SUPPORT — LLM (5) ───────────────────────────────────────────────────
+const coreLLM: OrchestratorEntry[] = [
+  wrap('llm:router', 'core-support', ['llm-route', 'model-select', 'provider-select'],
+    'Routes LLM requests to best provider',
+    async () => { const m = await import('../../../core/llm/router/orchestrator.ts'); return (i: any) => m.routeLLMRequest(i); }),
+
+  wrap('llm:prompt-builder', 'core-support', ['prompt', 'prompt-build', 'system-prompt'],
+    'Builds optimized prompts',
+    async () => { const m = await import('../../../core/llm/prompt-builder/orchestrator.ts'); return (i: any) => m.buildPrompt(i); }),
+
+  wrap('llm:context', 'core-support', ['context-compress', 'token-limit', 'context-window'],
+    'Compresses context for LLM',
+    async () => { const m = await import('../../../core/llm/context/orchestrator.ts'); return (i: any) => m.compressContext(i); }),
+
+  wrap('llm:embeddings', 'core-support', ['embed', 'embedding', 'vector', 'similarity'],
+    'Generates embeddings',
+    async () => { const m = await import('../../../core/llm/embeddings/orchestrator.ts'); return (i: any) => m.generateEmbeddings(i); }),
+
+  wrap('llm:parser', 'core-support', ['parse-llm', 'llm-response', 'extract-json'],
+    'Parses LLM responses',
+    async () => { const m = await import('../../../core/llm/parser/llm-response-parser/orchestrator.ts'); return (i: any) => m.parseLLMResponse(i); }),
+];
+
+// ─── CORE-SUPPORT — Execution (9) ─────────────────────────────────────────────
+const coreExecution: OrchestratorEntry[] = [
+  wrap('exec:code-fixer', 'core-support', ['fix-code', 'auto-fix', 'lint-fix'],
+    'Automatically fixes code issues',
+    async () => { const m = await import('../../../core/execution/code-ops/code-fixer/orchestrator.ts'); return (i: any) => m.runCodeFixer(i); }),
+
+  wrap('exec:diff-proposer', 'core-support', ['diff', 'propose-change', 'code-diff'],
+    'Proposes code diffs',
+    async () => { const m = await import('../../../core/execution/code-ops/diff-proposer/orchestrator.ts'); return (i: any) => m.proposeDiff(i); }),
+
+  wrap('exec:patch-engine', 'core-support', ['patch', 'apply-patch', 'code-patch'],
+    'Applies code patches',
+    async () => { const m = await import('../../../core/execution/code-ops/patch-engine/orchestrator.ts'); return (i: any) => m.applyPatch(i); }),
+
+  wrap('exec:migration-runner', 'core-support', ['run-migration', 'migrate-db', 'db-upgrade'],
+    'Runs database migrations',
+    async () => { const m = await import('../../../core/execution/db-ops/migration-runner/orchestrator.ts'); return (i: any) => m.runMigration(i); }),
+
+  wrap('exec:debug-agent', 'core-support', ['debug', 'trace-error', 'root-cause'],
+    'Debug agent',
+    async () => { const m = await import('../../../core/execution/debug-ops/debug-agent/orchestrator.ts'); return (i: any) => m.runDebugAgent(i); }),
+
+  wrap('exec:error-fixer', 'core-support', ['fix-error', 'resolve-error', 'error-fix'],
+    'Fixes runtime errors',
+    async () => { const m = await import('../../../core/execution/debug-ops/error-fixer/orchestrator.ts'); return (i: any) => m.runErrorFixer(i); }),
+
+  wrap('exec:shell', 'core-support', ['shell', 'terminal', 'bash', 'command'],
+    'Shell command execution',
+    async () => { const m = await import('../../../core/execution/shell/orchestrator.ts'); return (i: any) => m.runShell(i); }),
+
+  wrap('exec:package-installer', 'core-support', ['install', 'npm-install', 'package-install'],
+    'Package installation',
+    async () => { const m = await import('../../../core/execution/shell/package-installer/orchestrator.ts'); return (i: any) => m.installPackage(i); }),
+
+  wrap('exec:test-ops', 'core-support', ['run-tests', 'test-runner', 'jest-run', 'execute-tests'],
+    'Runs test suite',
+    async () => { const m = await import('../../../core/execution/test-ops/orchestrator.ts'); return (i: any) => m.runTestOrchestration(i); }),
+];
+
+// ─── CORE-SUPPORT — Context + Governor (4) ───────────────────────────────────
+const coreContext: OrchestratorEntry[] = [
+  wrap('context:codebase-indexer', 'core-support', ['index-codebase', 'codebase-index', 'ast-index'],
+    'Indexes codebase for context',
+    async () => { const m = await import('../../../core/context/indexing/codebase-indexer/orchestrator.ts'); return (i: any) => m.runCodebaseIndexing(i); }),
+
+  wrap('context:context-builder', 'core-support', ['build-context', 'context-build', 'gather-context'],
+    'Builds context for LLM',
+    async () => { const m = await import('../../../core/context/indexing/context-builder/orchestrator.ts'); return (i: any) => m.buildContext(i); }),
+
+  wrap('context:diff-reviewer', 'core-support', ['review-diff', 'code-review', 'diff-review'],
+    'Reviews code diffs',
+    async () => { const m = await import('../../../core/context/review/diff-reviewer/orchestrator.ts'); return (i: any) => m.reviewDiff(i); }),
+
+  wrap('core:global-governor', 'core-support', ['govern', 'global-govern', 'system-control'],
+    'Global system governor',
+    async () => { const m = await import('../../../core/orchestration/global-governor/orchestrator.ts'); return (i: any) => m.govern(i); }),
+];
+
+// ─── DATA (2) ─────────────────────────────────────────────────────────────────
+const data: OrchestratorEntry[] = [
+  wrap('data:redis', 'data', ['redis', 'cache', 'pub-sub', 'key-value'],
+    'Redis connection and operations',
+    async () => { const m = await import('../../../data/redis/orchestrator.ts'); return (i: any) => m.initRedis(i); }),
+
+  wrap('data:query-optimizer', 'data', ['query-optimize', 'sql-optimize', 'slow-query'],
+    'Database query optimization',
+    async () => { const m = await import('../../../data/query-optimizer/orchestrator.ts'); return (i: any) => m.optimizeQuery(i); }),
+];
+
+// ─── REALTIME (2) ─────────────────────────────────────────────────────────────
+const realtime: OrchestratorEntry[] = [
+  wrap('realtime:websocket', 'realtime', ['websocket', 'ws', 'socket', 'realtime-server'],
+    'WebSocket server generation',
+    async () => { const m = await import('../../../realtime/websocket-server-generator/orchestrator.ts'); return (i: any) => m.startWebSocketServerOrchestrator(i); }),
+
+  wrap('realtime:chat', 'realtime', ['chat', 'messaging', 'chatroom', 'real-time-chat'],
+    'Real-time chat generation',
+    async () => { const m = await import('../../../realtime/chat-feature-generator/orchestrator.ts'); return (i: any) => m.generateChatFeature(i); }),
+];
+
+// ─── CORE-PIPELINE — Phase orchestrators (7) ─────────────────────────────────
+// These are the orchestrators that the pipeline calls directly in its fixed
+// 9-phase sequence. They are registered here as well so that external tools
+// (capability discovery, dynamic dispatch, tests) can also find them by
+// capability. NOTE: the pipeline orchestrator itself is intentionally NOT
+// registered to prevent circular self-dispatch.
+const corePipeline: OrchestratorEntry[] = [
+  wrap('core:router', 'core-support', ['route', 'routing-intent', 'intent-detect', 'domain-route'],
+    'Intent detection and domain routing (Phase 2)',
+    async () => { const m = await import('../../../core/router/orchestrator.ts'); return (i: any) => m.route(i); }),
+
+  wrap('intel:decision-engine', 'intelligence', ['decide', 'decision', 'strategy-select', 'agent-select'],
+    'Strategy selection and agent orchestration (Phase 3)',
+    async () => { const m = await import('../../../intelligence/decision-engine/orchestrator.ts'); return (i: any) => m.runDecisionEngine(i); }),
+
+  wrap('intel:planner-boss', 'intelligence', ['plan', 'task-decompose', 'execution-plan', 'planner-boss'],
+    'Task decomposition and execution plan (Phase 4)',
+    async () => { const m = await import('../../../intelligence/planning/planner/PlannerBoss/orchestrator.ts'); return (i: any) => m.plan(i); }),
+
+  wrap('intel:validation-engine', 'intelligence', ['validate', 'quality-gate', 'validation-engine', 'code-validate'],
+    '7-validator quality gate (Phase 5)',
+    async () => { const m = await import('../../../intelligence/validation-engine/orchestrator.ts'); return (i: any) => m.validate(i); }),
+
+  wrap('core:recovery', 'core-support', ['recover', 'retry', 'auto-recover', 'failure-recovery'],
+    'Automatic retry on failure (Phase 7b)',
+    async () => { const m = await import('../../../core/recovery/orchestrator.ts'); return (i: any) => m.recover(i); }),
+
+  wrap('intel:feedback-loop', 'intelligence', ['feedback', 'evaluate-output', 'improve', 'feedback-loop'],
+    'Output evaluation and improvement (Phase 8)',
+    async () => { const m = await import('../../../intelligence/feedback-loop/orchestrator.ts'); return (i: any) => m.runFeedbackLoop(i); }),
+
+  wrap('core:memory', 'core-support', ['memory', 'remember', 'persist-learning', 'process-memory'],
+    'Learning persistence (Phase 9)',
+    async () => { const m = await import('../../../core/memory/orchestrator.ts'); return (i: any) => m.processMemory(i); }),
+];
+
+// ─── PLATFORM SERVICES (9) ────────────────────────────────────────────────────
+// Wrappers around server/{db,events,llm,proxy,routes,sandbox,services,streams,tools}.
+// Files are NOT moved — these orchestrators expose plumbing through the same
+// pattern as agent orchestrators so the central pipeline can dispatch to them.
+const platformServices: OrchestratorEntry[] = [
+  wrap('platform:persistence', 'platform-services', ['db', 'postgres', 'drizzle', 'persistence', 'database-pool'],
+    'Postgres pool + Drizzle ORM access',
+    async () => { const m = await import('../../../../db/orchestrator.ts'); return (i: any) => m.runPersistenceOperation(i); }),
+
+  wrap('platform:event-bus', 'platform-services', ['events', 'event-bus', 'pubsub-internal', 'agent-events'],
+    'Typed in-process event bus (agent.event, console.log, file.change, run.lifecycle)',
+    async () => { const m = await import('../../../../events/orchestrator.ts'); return (i: any) => m.runEventBusOperation(i); }),
+
+  wrap('platform:llm-client', 'platform-services', ['llm', 'chat', 'tool-calling', 'openrouter', 'completion'],
+    'OpenRouter LLM HTTP client (chat, streamChat, chatWithTools)',
+    async () => { const m = await import('../../../../llm/orchestrator.ts'); return (i: any) => m.runLlmOperation(i); }),
+
+  wrap('platform:preview-proxy', 'platform-services', ['proxy', 'preview-routing', 'http-proxy', 'preview'],
+    'Per-project preview proxy with WS upgrade',
+    async () => { const m = await import('../../../../proxy/orchestrator.ts'); return (i: any) => m.runPreviewProxyOperation(i); }),
+
+  wrap('platform:http-routes', 'platform-services', ['http', 'rest', 'routes', 'express', 'api-routes'],
+    'Aggregates all Express router factories under server/routes/*',
+    async () => { const m = await import('../../../../routes/orchestrator.ts'); return (i: any) => m.runHttpRoutesOperation(i); }),
+
+  wrap('platform:sandbox', 'platform-services', ['sandbox', 'path-isolation', 'project-fs'],
+    'Per-project filesystem sandbox utilities',
+    async () => { const m = await import('../../../../sandbox/orchestrator.ts'); return (i: any) => m.runSandboxOperation(i); }),
+
+  wrap('platform:runtime-services', 'platform-services', ['services', 'runtime', 'process', 'fs-service', 'http-service', 'secrets'],
+    'Runtime services (filesystem, http, secrets, git, package-manager, project-runner, shell.spawn)',
+    async () => { const m = await import('../../../../services/orchestrator.ts'); return (i: any) => m.runRuntimeServicesOperation(i); }),
+
+  wrap('platform:streams', 'platform-services', ['sse', 'websocket', 'streaming', 'live-events'],
+    'SSE channels (11) + WebSocket channels (4) backed by the event bus',
+    async () => { const m = await import('../../../../streams/orchestrator.ts'); return (i: any) => m.runStreamsOperation(i); }),
+
+  wrap('platform:tools', 'platform-services', ['tool-registry', 'agent-tools', 'tool-defs'],
+    'LLM-callable tool registry (file ops, shell, server lifecycle, packages, agent control)',
+    async () => { const m = await import('../../../../tools/orchestrator.ts'); return (i: any) => m.runToolsOperation(i); }),
+];
+
+// ─── FULL REGISTRY ────────────────────────────────────────────────────────────
+export const ORCHESTRATOR_REGISTRY: readonly OrchestratorEntry[] = Object.freeze([
+  ...generationBackend,
+  ...generationFrontend,
+  ...generationMobile,
+  ...generationOther,
+  ...intelligence,
+  ...architectureIntel,
+  ...security,
+  ...observability,
+  ...devops,
+  ...infrastructure,
+  ...coreLLM,
+  ...coreExecution,
+  ...coreContext,
+  ...corePipeline,
+  ...data,
+  ...realtime,
+  ...platformServices,
+]);
+
+export function getRegistryStats() {
+  const byDomain: Record<string, number> = {};
+  for (const e of ORCHESTRATOR_REGISTRY) {
+    byDomain[e.domain] = (byDomain[e.domain] ?? 0) + 1;
+  }
+  return Object.freeze({ total: ORCHESTRATOR_REGISTRY.length, byDomain });
+}
+
+export function findByCapability(capability: string): readonly OrchestratorEntry[] {
+  const lower = capability.toLowerCase();
+  return Object.freeze(
+    ORCHESTRATOR_REGISTRY.filter((e) =>
+      e.capabilities.some((c) => c.includes(lower) || lower.includes(c)),
+    ),
+  );
+}
+
+export function findById(id: string): OrchestratorEntry | undefined {
+  return ORCHESTRATOR_REGISTRY.find((e) => e.id === id);
+}
+
+export function findByDomain(domain: OrchestratorDomain): readonly OrchestratorEntry[] {
+  return Object.freeze(ORCHESTRATOR_REGISTRY.filter((e) => e.domain === domain));
+}

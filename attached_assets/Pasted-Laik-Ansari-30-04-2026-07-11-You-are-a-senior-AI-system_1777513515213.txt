@@ -1,0 +1,279 @@
+Laik Ansari, [30.04.2026 07:11]
+You are a senior AI systems architect, frontend UX expert, and backend intelligence engineer.
+
+Your task is to perform a FULL SYSTEM X-RAY and generate a COMPLETE BLUEPRINT of the project.
+
+You must deeply analyze BOTH frontend and backend and produce a structured, actionable, and technical report.
+
+====================================================
+🎯 OBJECTIVE
+
+Extract:
+
+1. Full UI/UX structure (pages, buttons, flows)
+2. Full backend architecture (folders, agents, execution flow)
+3. File-level responsibility mapping
+4. Control flow (who calls whom)
+5. Current system flaws (bugs, bad structure, fake logic)
+6. Missing modules (critical gaps)
+7. Real Replit-like agent system comparison
+8. Final improved architecture blueprint
+
+====================================================
+🧠 FRONTEND X-RAY (MANDATORY)
+
+Analyze and extract:
+
+1. Total pages/screens
+2. Each page purpose
+3. All buttons + actions
+
+For each button:
+
+- What it currently does
+- What it SHOULD do (real behavior)
+- Is it fake or real?
+
+4. UI Components:
+
+- Chat panel
+- Console
+- File explorer
+- Preview window
+- Bot modal
+
+5. User flow:
+
+User click → UI event → backend call → response
+
+6. Identify:
+
+- fake interactions ❌
+- missing connections ❌
+- broken UX flows ❌
+
+====================================================
+⚙️ BACKEND X-RAY (MANDATORY)
+
+Deep scan all folders:
+
+server/
+
+For each folder:
+
+- Purpose
+- Type (analysis / execution / orchestration / preview / infra)
+- Is it correctly placed?
+
+For each file:
+
+- What it does
+- Who calls it
+- What it imports
+- What it controls
+
+====================================================
+🔗 CONTROL FLOW (VERY IMPORTANT)
+
+Map complete flow:
+
+UI → agent-loop → backend-intelligence → execution → preview
+
+Explain step-by-step:
+
+- who triggers
+- who processes
+- who executes
+- who returns response
+
+====================================================
+🧠 NEW: DATA FLOW + STATE FLOW (CRITICAL)
+
+Trace:
+
+- data origin (user input / files / APIs)
+- transformation steps
+- where state is stored (memory / DB / session)
+- how data reaches UI
+
+Also include:
+
+- global state map
+- session state structure
+- process state (running services, ports)
+
+====================================================
+🌐 NEW: API + CONTRACT LAYER
+
+Extract:
+
+- all API endpoints
+- request/response schema
+- frontend ↔ backend contract
+- mismatch or broken contracts
+
+====================================================
+🧰 NEW: TOOL SYSTEM ANALYSIS (VERY IMPORTANT)
+
+Identify:
+
+- available tools (file, terminal, install, preview)
+- how tools are triggered
+- how agent uses tools
+- missing tools
+
+====================================================
+⚡ NEW: PERFORMANCE + BOTTLENECK ANALYSIS
+
+Detect:
+
+- slow modules
+- blocking calls
+- heavy operations
+- unnecessary re-renders / loops
+
+====================================================
+🔐 NEW: SECURITY + SANDBOX ANALYSIS
+
+Check:
+
+- unsafe command execution
+- file system access risk
+- sandbox isolation
+- injection vulnerabilities
+
+====================================================
+🤖 AGENT SYSTEM ANALYSIS
+
+Explain:
+
+1. Current agent system behavior
+2. Is it real or fake?
+3. Does it use tools or not?
+4. Does it loop (feedback system)?
+
+Also analyze:
+
+- decision-making logic
+- planning logic
+- fallback behavior
+
+Compare with:
+
+Replit / Cursor / Lovable
+
+====================================================
+📦 NEW: DEPENDENCY GRAPH ANALYSIS
+
+Generate:
+
+- file-to-file dependency graph
+- module dependency map
+- identify tight coupling / cycles
+
+====================================================
+🐞 BUG + STRUCTURE DETECTION
+
+Identify:
+
+- wrong folder placement
+- tight coupling
+- missing modules
+- broken architecture rules
+- unused or duplicate modules
+
+====================================================
+📊 NEW: ISSUE PRIORITY + IMPACT
+
+Rank all issues:
+
+- Critical 🔴
+- High 🟠
+- Medium 🟡
+- Low 🟢
+
+Explain:
+
+- impact
+- risk
+- fix complexity
+
+====================================================
+📊 MISSING SYSTEMS
+
+List:
+
+- missing agents
+- missing engines
+- missing connections
+- missing real execution parts
+
+Laik Ansari, [30.04.2026 07:11]
+====================================================
+🧪 NEW: TESTING + RELIABILITY ANALYSIS
+
+Check:
+
+- test coverage
+- failure points
+- system reliability
+- crash scenarios
+
+====================================================
+🏗️ FINAL BLUEPRINT OUTPUT
+
+Generate:
+
+1. Correct folder structure
+2. Clean module grouping
+3. Frontend → backend connection map
+4. Agent loop integration
+5. Execution pipeline
+6. Preview system integration
+
+====================================================
+🧱 3D STRUCTURE (IMPORTANT)
+
+Represent system as layers:
+
+Frontend (UI)
+↓
+Control Layer (agent-loop)
+↓
+Intelligence Layer (backend-intelligence)
+↓
+Execution Layer
+↓
+Preview Layer
+
+====================================================
+🚀 OUTPUT FORMAT
+
+Must include:
+
+- structured tables
+- flow diagrams (text-based)
+- module breakdown
+- issues list
+- fix recommendations
+
+====================================================
+⚠️ RULES
+
+- NO generic explanation
+- NO assumptions
+- EVERYTHING must be based on actual code
+- Be brutally honest
+- Highlight critical flaws first
+- Suggest REAL fixes only
+
+====================================================
+FINAL GOAL
+
+Turn this system into:
+
+Replit-level AI coding platform
+
+NOT a demo
+NOT fake UI
+REAL execution system

@@ -1,0 +1,32 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "WXBxIy1P5AxEVN4WrtwS7"
+uri = "file://server/agents/ARCHITECTURE_AUDIT_REPORT.md"
+type = "text"
+title = "Architecture Audit Report — server/agents/"
+
+[[outputs]]
+id = "PWQnaFsiHEVMMq9E9Bcmx"
+uri = "file://ARCHITECTURE_AUDIT_REPORT.md"
+type = "text"
+title = "Full Backend Architecture Blueprint Report"
+
+[[outputs]]
+id = "hySbaQ_i3tRl2sTZkVFMx"
+uri = "file://agents-report.md"
+type = "text"
+title = "Agents Report"
+
+[[outputs]]
+id = "mvKk4mcySuJN7bSQtXwKx"
+uri = "file://docs/AGENT_BUILD_PROMPT.md"
+type = "text"
+title = "NURA X — Full-Stack Agentic AI Build Prompt"
+
+[[outputs]]
+id = "bUsa8Z81UMeXJjI-3ljHX"
+uri = "file://SYSTEM_XRAY_REPORT.md"
+type = "text"
+title = "NURA X — Full System X-Ray Report"

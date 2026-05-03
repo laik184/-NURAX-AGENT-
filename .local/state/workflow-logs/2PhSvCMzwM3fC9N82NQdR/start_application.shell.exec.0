@@ -1,0 +1,36 @@
+[1G[0K⠙[1G[0K
+> nura-x-deployer@1.0.0 dev
+> concurrently -k -n api,web -c blue,magenta "npm:dev:api" "npm:dev:web"
+
+[1G[0K⠙[1G[0K[35m[web][39m 
+[35m[web][39m > nura-x-deployer@1.0.0 dev:web
+[35m[web][39m > vite
+[35m[web][39m 
+[34m[api][39m 
+[34m[api][39m > nura-x-deployer@1.0.0 dev:api
+[34m[api][39m > tsx watch main.ts
+[34m[api][39m 
+[35m[web][39m 
+[35m[web][39m   [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m1118[22m[2m[0m ms[22m
+[35m[web][39m 
+[35m[web][39m   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5000[22m/[39m
+[35m[web][39m   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.123.34:[1m5000[22m/[39m
+[34m[api][39m [nura-x] WebSocket server attached: /ws/{terminal,execute/:id,agent/:id,files/:id}
+[34m[api][39m [nura-x] API server running on port 3001
+[34m[api][39m [nura-x] Environment: development
+[35m[web][39m 
+[35m[web][39m A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+[35m[web][39m [2m10:58:02 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ConsolePanel.tsx, /src/index.css[22m
+[35m[web][39m [2m11:01:55 AM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ConsolePanel.tsx, /src/index.css[22m
+[34m[api][39m [nura-x] SIGTERM received — graceful shutdown
+[34m[api][39m [nura-x] SIGTERM received — graceful shutdown
+[34m[api][39m [90m11:02:00 AM[39m [96m[tsx][39m [33mPrevious process hasn't exited yet. Force killing...[39m
+[35m[web][39m [0mnpm run dev:web exited with code SIGTERM[0m
+[0m-->[0m [0mSending SIGTERM to other processes..[0m
+[34m[api][39m [0mnpm run dev:api exited with code SIGTERM[0m
+[1G[0K⠙[1G[0K[1mnpm[22m [96mnotice[39m
+[1mnpm[22m [96mnotice[39m New [31mmajor[39m version of npm available! [31m10.8.2[39m -> [34m11.13.0[39m
+[1mnpm[22m [96mnotice[39m Changelog: [34mhttps://github.com/npm/cli/releases/tag/v11.13.0[39m
+[1mnpm[22m [96mnotice[39m To update run: [4mnpm install -g npm@11.13.0[24m
+[1mnpm[22m [96mnotice[39m
+[1G[0K⠙[1G[0K

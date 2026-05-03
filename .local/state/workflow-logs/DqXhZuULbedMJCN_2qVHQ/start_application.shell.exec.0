@@ -1,0 +1,44 @@
+
+> nura-x-deployer@1.0.0 dev
+> concurrently -k -n api,web -c blue,magenta "npm:dev:api" "npm:dev:web"
+
+[1G[0K[35m[web][39m 
+[35m[web][39m > nura-x-deployer@1.0.0 dev:web
+[35m[web][39m > vite
+[35m[web][39m 
+[34m[api][39m 
+[34m[api][39m > nura-x-deployer@1.0.0 dev:api
+[34m[api][39m > tsx watch main.ts
+[34m[api][39m 
+[35m[web][39m 
+[35m[web][39m   [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m183[22m[2m[0m ms[22m
+[35m[web][39m 
+[35m[web][39m   [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5000[22m/[39m
+[35m[web][39m   [32m➜[39m  [1mNetwork[22m: [36mhttp://172.31.82.66:[1m5000[22m/[39m
+[34m[api][39m [nura-x] WebSocket server attached: /ws/{terminal,execute/:id,agent/:id,files/:id}
+[34m[api][39m [nura-x] API server running on port 3001
+[34m[api][39m [nura-x] Environment: development
+[35m[web][39m 
+[35m[web][39m A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+[35m[web][39m [2m8:26:14 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ChatPanel.tsx, /src/index.css[22m
+[35m[web][39m [2m8:26:17 PM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/ChatPanel.tsx[22m Could not Fast Refresh ("TOOL_ANIMATION_MAP" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[35m[web][39m [2m8:26:17 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/workspace.tsx[22m
+[35m[web][39m [2m8:26:29 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ChatPanel.tsx, /src/index.css[22m
+[35m[web][39m [2m8:26:31 PM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/ChatPanel.tsx[22m Could not Fast Refresh ("TOOL_ANIMATION_MAP" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[35m[web][39m [2m8:26:31 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/workspace.tsx[22m
+[35m[web][39m [2m8:26:57 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ChatPanel.tsx, /src/index.css[22m
+[35m[web][39m [2m8:27:00 PM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/ChatPanel.tsx[22m Could not Fast Refresh ("TOOL_ANIMATION_MAP" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[35m[web][39m [2m8:27:00 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/workspace.tsx[22m
+[35m[web][39m [2m8:27:13 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ChatPanel.tsx, /src/index.css[22m
+[35m[web][39m [2m8:27:15 PM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/ChatPanel.tsx[22m Could not Fast Refresh ("TOOL_ANIMATION_MAP" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[35m[web][39m [2m8:27:15 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/workspace.tsx[22m
+[35m[web][39m [2m8:27:16 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/ChatPanel.tsx, /src/index.css[22m
+[35m[web][39m [2m8:27:18 PM[22m [36m[1m[vite][22m[39m [33mhmr invalidate [39m[2m/src/components/ChatPanel.tsx[22m Could not Fast Refresh ("TOOL_ANIMATION_MAP" export is incompatible). Learn more at https://github.com/vitejs/vite-plugin-react/tree/main/packages/plugin-react#consistent-components-exports
+[35m[web][39m [2m8:27:18 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/index.css, /src/pages/workspace.tsx[22m
+[35m[web][39m [2m8:27:20 PM[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/pages/workspace.tsx, /src/index.css[22m
+[34m[api][39m [nura-x] SIGTERM received — graceful shutdown
+[34m[api][39m [nura-x] SIGTERM received — graceful shutdown
+[35m[web][39m [0mnpm run dev:web exited with code SIGTERM[0m
+[0m-->[0m [0mSending SIGTERM to other processes..[0m
+[34m[api][39m [0mnpm run dev:api exited with code SIGTERM[0m
+[1G[0K⠙[1G[0K

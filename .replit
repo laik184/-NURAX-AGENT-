@@ -1,0 +1,104 @@
+modules = ["nodejs-20", "postgresql-16"]
+[nix]
+channel = "stable-25_05"
+
+[agent]
+expertMode = true
+stack = "FULLSTACK_JS"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Start application"
+
+[[workflows.workflow]]
+name = "Start application"
+author = "agent"
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm run dev"
+waitForPort = 5000
+
+[[ports]]
+localPort = 3000
+externalPort = 3001
+
+[[ports]]
+localPort = 3001
+externalPort = 3002
+
+[[ports]]
+localPort = 3002
+externalPort = 3003
+
+[[ports]]
+localPort = 3003
+externalPort = 3000
+
+[[ports]]
+localPort = 3004
+externalPort = 4200
+
+[[ports]]
+localPort = 3005
+externalPort = 5000
+
+[[ports]]
+localPort = 4001
+externalPort = 5173
+
+[[ports]]
+localPort = 4002
+externalPort = 6000
+
+[[ports]]
+localPort = 4003
+externalPort = 6800
+
+[[ports]]
+localPort = 4004
+externalPort = 8000
+
+[[ports]]
+localPort = 4005
+externalPort = 8008
+
+[[ports]]
+localPort = 4006
+externalPort = 8080
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 5001
+externalPort = 8099
+
+[[ports]]
+localPort = 5173
+externalPort = 9000
+
+[userenv]
+
+[userenv.shared]
+LLM_BASE_URL = "https://openrouter.ai/api/v1"
+LLM_MODEL = "openai/gpt-oss-120b:free"
+AGENT_PROJECT_ROOT = ".sandbox"
+AGENT_HTTP_ALLOWED_HOSTS = "openrouter.ai,api.openai.com"
+
+[deployment]
+deploymentTarget = "autoscale"
+run = ["node", "./dist/index.cjs"]
+build = ["npm", "run", "build"]
