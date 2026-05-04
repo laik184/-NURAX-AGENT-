@@ -1377,7 +1377,7 @@ const handleCopyUrl = () => {
               `}</style>
 
               {/* ── Bottom-center floating overlay (building / running / error) ── */}
-              {overlayVisible && (
+              {false && overlayVisible && (
                 <div style={{
                   position: "absolute",
                   bottom: "clamp(16px,3.5%,32px)",
