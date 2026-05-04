@@ -1,6 +1,7 @@
 import { llm, type ToolMessage } from "../llm/openrouter.client.ts";
 import { TOOLS, TOOL_DEFS, getTool, TERMINAL_TOOL_NAMES, type ToolContext } from "../tools/registry.ts";
 import { bus } from "../events/bus.ts";
+import { buildSystemPrompt } from "../agents/core/llm/prompt-builder/agents/system-prompt.agent.js";
 
 export interface AgentLoopInput {
   readonly projectId: number;
@@ -8,6 +9,7 @@ export interface AgentLoopInput {
   readonly goal: string;
   readonly maxSteps?: number;
   readonly signal?: AbortSignal;
+  readonly systemPrompt?: string;
 }
 
 export interface AgentLoopResult {
@@ -18,8 +20,7 @@ export interface AgentLoopResult {
   readonly error?: string;
 }
 
-const SYSTEM_PROMPT = `You are NURA X, an autonomous coding agent inside a Replit-clone IDE.
-
+const TOOL_REFERENCE = `
 You operate inside a per-user sandbox at the project root. You have these tools:
 
 - file_list({path?, maxDepth?}) → directory tree
@@ -35,15 +36,7 @@ You operate inside a per-user sandbox at the project root. You have these tools:
 - agent_question({text, options}) → ask the user a clarifying question and WAIT for their answer. Use ONLY when you cannot make a sensible default choice (e.g. "PostgreSQL or MySQL?"). Provide 2–5 short option strings. The loop pauses until the user clicks.
 - task_complete({summary}) → call ONCE when the goal is done; this ends the loop
 
-CORE OPERATING LOOP:
-1. Understand the goal. If something is unclear, write a sensible default — don't ask the user.
-2. Inspect the project (file_list, file_read).
-3. Plan a minimal set of file_write + shell_exec + package_install actions.
-4. Execute. After each meaningful change, server_restart and server_logs to verify.
-5. If logs show "Cannot find module X" → call detect_missing_packages, then package_install on the result, then server_restart.
-6. Repeat until the goal is done. Then call task_complete with a short summary.
-
-RULES:
+TOOL RULES:
 - Always work INSIDE the sandbox; never assume files outside the project root.
 - For a brand-new project: create package.json with {"scripts":{"dev":"..."}} so server_start works.
 - For React/Vite apps: prefer Vite + React + TypeScript; entry index.html; src/main.tsx; vite.config.ts must use \`server: { host: "0.0.0.0", port: Number(process.env.PORT) || 5173, allowedHosts: true }\` so the preview iframe works.
@@ -52,13 +45,13 @@ RULES:
 - After install + restart, ALWAYS check server_logs to confirm it actually started; fix errors before declaring done.
 - Be concise; the user sees every tool call live.
 - Only call agent_question when there is genuinely no good default (e.g. which paid service to use). For everything else, make a reasonable choice and proceed without asking.
-
-When the goal is achieved, call task_complete({summary}). Do not output a long final message — task_complete IS the final message.`;
+- When the goal is achieved, call task_complete({summary}). Do not output a long final message — task_complete IS the final message.`;
 
 export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResult> {
   const maxSteps = input.maxSteps ?? 25;
+  const resolvedSystemPrompt = buildSystemPrompt(input.systemPrompt) + "\n\n" + TOOL_REFERENCE;
   const messages: ToolMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: resolvedSystemPrompt },
     {
       role: "user",
       content: `Project ID: ${input.projectId}\nGoal:\n${input.goal}`,

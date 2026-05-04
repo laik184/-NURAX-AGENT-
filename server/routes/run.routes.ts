@@ -25,17 +25,18 @@ export function createRunRouter(): Router {
       });
     }
 
-    const { projectId, goal, mode, context } = (req.body || {}) as {
+    const { projectId, goal, mode, context, systemPrompt } = (req.body || {}) as {
       projectId?: number;
       goal?: string;
       mode?: "lite" | "economy" | "power" | "core";
       context?: Record<string, unknown>;
+      systemPrompt?: string;
     };
     if (!projectId || !goal) {
       return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "projectId and goal required" } });
     }
     try {
-      const handle = await orchestrator.runGoal({ projectId, goal, mode, context });
+      const handle = await orchestrator.runGoal({ projectId, goal, mode, context, systemPrompt });
       res.json({ ok: true, data: handle });
     } catch (e: any) {
       res.status(500).json({ ok: false, error: { code: "RUN_ERROR", message: e.message } });

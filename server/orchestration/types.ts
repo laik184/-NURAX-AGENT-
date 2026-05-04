@@ -3,6 +3,7 @@ export interface RunInput {
   goal: string;
   mode?: "lite" | "economy" | "power" | "core" | "agent" | "pipeline";
   context?: Record<string, unknown>;
+  systemPrompt?: string;
 }
 
 export interface RunHandle {

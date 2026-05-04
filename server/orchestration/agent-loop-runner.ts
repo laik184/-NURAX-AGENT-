@@ -29,6 +29,7 @@ export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Pr
       projectId,
       runId,
       goal: input.goal,
+      systemPrompt: input.systemPrompt,
       maxSteps:
         typeof input.context?.maxSteps === "number"
           ? (input.context!.maxSteps as number)
