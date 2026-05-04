@@ -247,18 +247,7 @@ export default function Home() {
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading projects...
             </div>
-          ) : recentProjects.length === 0 ? (
-            <div
-              className="flex flex-col items-center justify-center py-12 rounded-2xl border border-white/8 bg-white/2 gap-3 cursor-pointer hover:bg-white/4 transition-colors"
-              onClick={() => navigate("/create")}
-              data-testid="empty-projects-cta"
-            >
-              <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-                <Plus className="h-5 w-5 text-primary" />
-              </div>
-              <p className="text-sm text-muted-foreground">No projects yet — create your first one</p>
-            </div>
-          ) : (
+          ) : recentProjects.length === 0 ? null : (
             <div className="grid grid-cols-2 gap-3" data-testid="grid-recent-projects">
               {recentProjects.map((project, idx) => (
                 <button
