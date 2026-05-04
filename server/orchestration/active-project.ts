@@ -2,14 +2,15 @@ import type { Request } from "express";
 import { db } from "../db/index.ts";
 import { projects } from "../../shared/schema.ts";
 import { desc, eq } from "drizzle-orm";
-import { ensureProjectDir, projectRoot } from "../sandbox/sandbox.util.ts";
 
 /**
- * Resolves the project for a request. Falls back to most recently used
- * project, or auto-creates a default one. This lets the frontend run
- * without explicitly tracking projectId everywhere.
+ * Resolves the projectId for a request from body / query / header.
+ * Returns the numeric projectId if found in the DB, otherwise null.
+ *
+ * IMPORTANT: This function NEVER auto-creates any project.
+ * Routes that need a valid projectId must check for null and return 400.
  */
-export async function resolveProjectId(req: Request): Promise<number> {
+export async function resolveProjectId(req: Request): Promise<number | null> {
   const fromHeader = req.headers["x-project-id"];
   const fromQuery = req.query?.projectId;
   const fromBody = (req.body as Record<string, unknown> | undefined)?.projectId;
@@ -17,54 +18,33 @@ export async function resolveProjectId(req: Request): Promise<number> {
     (fromBody as string | number | undefined) ??
     (fromQuery as string | number | undefined) ??
     (Array.isArray(fromHeader) ? fromHeader[0] : (fromHeader as string | undefined));
+
   if (raw !== undefined && raw !== null && raw !== "") {
     const n = Number(raw);
     if (Number.isFinite(n) && n > 0) {
       const [exists] = await db.select().from(projects).where(eq(projects.id, n));
-      if (exists) return n;
-      // Lazy-create the row so the explicit id is honored.
-      try {
-        await db
-          .insert(projects)
-          .values({
-            id: n,
-            name: `Project ${n}`,
-            description: "Auto-created on first use",
-            framework: "nodejs",
-            sandboxPath: projectRoot(n),
-          })
-          .onConflictDoNothing();
-        await ensureProjectDir(n);
-        return n;
-      } catch {
-        /* fall through to default */
-      }
+      return exists ? n : null;
     }
   }
-  return getOrCreateActiveProject();
-}
 
-export async function getOrCreateActiveProject(): Promise<number> {
+  // No explicit id — return most recently updated project, or null
   const [latest] = await db
     .select()
     .from(projects)
     .orderBy(desc(projects.updatedAt))
     .limit(1);
-  if (latest) return latest.id;
+  return latest?.id ?? null;
+}
 
-  const [created] = await db
-    .insert(projects)
-    .values({
-      name: "My Project",
-      description: "Auto-created default project",
-      framework: "nodejs",
-      sandboxPath: "",
-    })
-    .returning();
-  await db
-    .update(projects)
-    .set({ sandboxPath: projectRoot(created.id) })
-    .where(eq(projects.id, created.id));
-  await ensureProjectDir(created.id);
-  return created.id;
+/**
+ * Returns the most recently used project id, or null if none exist.
+ * Does NOT auto-create any project.
+ */
+export async function getOrCreateActiveProject(): Promise<number | null> {
+  const [latest] = await db
+    .select()
+    .from(projects)
+    .orderBy(desc(projects.updatedAt))
+    .limit(1);
+  return latest?.id ?? null;
 }
