@@ -4,10 +4,27 @@ import { agentRuns, agentEvents } from "../../shared/schema.ts";
 import { eq, desc } from "drizzle-orm";
 import { orchestrator } from "../orchestration/controller.ts";
 
+/** Synchronous preflight: returns an error string if LLM is not usable. */
+function llmPreflight(): string | null {
+  if (!process.env.OPENROUTER_API_KEY) {
+    return "OPENROUTER_API_KEY is not set. Add it in Replit Secrets to enable agent runs.";
+  }
+  return null;
+}
+
 export function createRunRouter(): Router {
   const r = Router();
 
   r.post("/", async (req: Request, res: Response) => {
+    // Fast-fail before touching the DB if the LLM key is missing.
+    const preflightError = llmPreflight();
+    if (preflightError) {
+      return res.status(503).json({
+        ok: false,
+        error: { code: "LLM_UNAVAILABLE", message: preflightError },
+      });
+    }
+
     const { projectId, goal, mode, context } = (req.body || {}) as {
       projectId?: number;
       goal?: string;

@@ -13,10 +13,13 @@ import { projectRunner } from "../services/project-runner.service.ts";
 export function createPreviewProxy(): Router {
   const r = Router();
 
-  const proxyCache = new Map<number, ReturnType<typeof createProxyMiddleware>>();
+  // Cache key = "projectId:port" so a restart on a new port always
+  // gets a fresh proxy instance instead of hitting the old port.
+  const proxyCache = new Map<string, ReturnType<typeof createProxyMiddleware>>();
 
   function getProxy(projectId: number, port: number) {
-    const existing = proxyCache.get(projectId);
+    const key = `${projectId}:${port}`;
+    const existing = proxyCache.get(key);
     if (existing) return existing;
     const opts: Options = {
       target: `http://127.0.0.1:${port}`,
@@ -28,7 +31,9 @@ export function createPreviewProxy(): Router {
         try {
           // @ts-expect-error response is express
           res.status(502).type("html").send(
-            `<h2>Preview unavailable</h2><p>${err.message}</p>`,
+            `<!doctype html><html><body style="font-family:system-ui;background:#0b1020;color:#e6e6f0;padding:40px">` +
+            `<h2>Preview unavailable (502)</h2><p>${err.message}</p>` +
+            `<p>The project process may still be starting. Refresh in a moment.</p></body></html>`,
           );
         } catch {
           /* ignore */
@@ -36,7 +41,7 @@ export function createPreviewProxy(): Router {
       },
     };
     const mw = createProxyMiddleware(opts);
-    proxyCache.set(projectId, mw);
+    proxyCache.set(key, mw);
     return mw;
   }
 

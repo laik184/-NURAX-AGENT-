@@ -13,7 +13,12 @@ import {
 } from "node:fs/promises";
 import * as path from "node:path";
 
-const PROJECT_ROOT = path.resolve(process.env.AGENT_PROJECT_ROOT ?? process.cwd());
+// Default root is the .sandbox directory; set AGENT_PROJECT_ROOT to override.
+// Individual sandboxed operations use resolveForProject() below.
+const SANDBOX_BASE = path.resolve(
+  process.env.AGENT_PROJECT_ROOT ?? path.join(process.cwd(), ".sandbox"),
+);
+const PROJECT_ROOT = SANDBOX_BASE;
 
 const FORBIDDEN_PATHS: readonly string[] = Object.freeze([
   "/etc",

@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { type Request, type Response, type NextFunction } from 'express';
 import { createServer } from 'http';
 
 import { createAgentsRouter } from './server/routes/agents.routes.ts';
@@ -24,6 +24,15 @@ import { attachWebSocketServer } from './server/streams/ws-server.ts';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
+
+// ── Startup: warn loudly if critical env vars are missing ──────────────
+const MISSING_VARS: string[] = [];
+if (!process.env.OPENROUTER_API_KEY) MISSING_VARS.push('OPENROUTER_API_KEY');
+if (!process.env.DATABASE_URL) MISSING_VARS.push('DATABASE_URL');
+if (MISSING_VARS.length > 0) {
+  console.warn(`[nura-x] ⚠  Missing required environment variables: ${MISSING_VARS.join(', ')}`);
+  console.warn('[nura-x] ⚠  Agent runs will fail until OPENROUTER_API_KEY is set in Secrets.');
+}
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -64,6 +73,19 @@ app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// LLM key health — frontend can call this to show a clear banner
+app.get('/api/health/llm', (_req, res) => {
+  const hasKey = !!process.env.OPENROUTER_API_KEY;
+  res.status(hasKey ? 200 : 503).json({
+    ok: hasKey,
+    llm: hasKey ? 'ready' : 'missing_key',
+    model: process.env.LLM_MODEL || 'openai/gpt-oss-120b:free',
+    message: hasKey
+      ? 'OPENROUTER_API_KEY is set — agent runs are enabled.'
+      : 'OPENROUTER_API_KEY is not set. Add it in Replit Secrets to enable agent runs.',
+  });
+});
+
 app.get('/api/status', (_req, res) => {
   res.json({
     status: 'running',
@@ -83,6 +105,18 @@ app.get('/api/pro', (_req, res) => {
 
 app.get('/api/enterprise', (_req, res) => {
   res.json({ feature: 'enterprise-analytics', enabled: true });
+});
+
+// ── Global error handler — must be last middleware ─────────────────────
+// Catches any unhandled synchronous throws in route handlers and returns
+// a consistent JSON envelope instead of Express's default HTML error page.
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  const status = (err as any).status || (err as any).statusCode || 500;
+  console.error(`[nura-x] Unhandled error (${status}):`, err.message);
+  res.status(status).json({
+    ok: false,
+    error: { code: 'INTERNAL_ERROR', message: err.message },
+  });
 });
 
 const server = createServer(app);
