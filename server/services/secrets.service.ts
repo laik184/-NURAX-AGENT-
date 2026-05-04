@@ -53,6 +53,7 @@ export interface SecretsService {
   readEnvFileRedacted(filePath: string): Promise<RedactedEnv>;
   redactRecord(record: Readonly<Record<string, string>>): RedactedEnv;
   isSensitiveKey(key: string): boolean;
+  list(): RedactedEnv;
 }
 
 export const secretsService: SecretsService = Object.freeze({
@@ -92,5 +93,13 @@ export const secretsService: SecretsService = Object.freeze({
 
   isSensitiveKey(key: string): boolean {
     return isSensitive(key);
+  },
+
+  list(): RedactedEnv {
+    return Object.freeze({
+      keys: Object.freeze([] as string[]),
+      redacted: Object.freeze({} as Record<string, string>),
+      sensitiveKeys: Object.freeze([] as string[]),
+    });
   },
 });

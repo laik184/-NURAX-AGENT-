@@ -5,11 +5,11 @@ import {
   resetCounter,
 } from "./index.js";
 import type { PatchResult, DiffResult } from "./index.js";
-import { applyAsyncRefactor }         from "./async-refactor.agent.js";
-import { applyCacheInjection }        from "./cache-injector.agent.js";
-import { applySyncReduction }         from "./sync-reducer.agent.js";
-import { applyWorkerThreadInjection } from "./worker-thread-injector.agent.js";
-import { applyPayloadOptimization }   from "./payload-optimizer.agent.js";
+import { applyAsyncRefactor }         from "./agents/async-refactor.agent.js";
+import { applyCacheInjection }        from "./agents/cache-injector.agent.js";
+import { applySyncReduction }         from "./agents/sync-reducer.agent.js";
+import { applyWorkerThreadInjection } from "./agents/worker-thread-injector.agent.js";
+import { applyPayloadOptimization }   from "./agents/payload-optimizer.agent.js";
 import { buildDiff }                  from "./diff.builder.js";
 import {
   hasSyncFsCalls, hasSyncCryptoCalls, hasHeavyLoops,

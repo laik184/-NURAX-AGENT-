@@ -114,7 +114,7 @@ export const RAW_CONSOLE_PATTERNS = Object.freeze<readonly RegExp[]>([
   /\bconsole\.(log|debug|info|warn|error|trace)\s*\(/g,
 ]);
 
-export const STRUCTURED_LOG_LIBRARY_PATTERNS = Object.freeze<readonly Array<{ rx: RegExp; label: string }>>([
+export const STRUCTURED_LOG_LIBRARY_PATTERNS = Object.freeze<ReadonlyArray<{ rx: RegExp; label: string }>>([
   { rx: /\bwinston\b/g,          label: "winston" },
   { rx: /\bpino\b/g,             label: "pino" },
   { rx: /\bbunyan\b/g,           label: "bunyan" },

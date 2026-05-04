@@ -35,7 +35,7 @@ export function withCurrentDecision(
   const updatedHistory = [record, ...state.decisionHistory].slice(0, MAX_HISTORY);
   const updatedPrevious = state.currentDecision
     ? [
-        { ...state.currentDecision, requestId, timestamp: Date.now(), confidence: state.confidenceScore } as DecisionRecord,
+        { ...state.currentDecision, requestId, timestamp: Date.now(), confidence: state.confidenceScore } as unknown as DecisionRecord,
         ...state.previousDecisions,
       ].slice(0, MAX_HISTORY)
     : state.previousDecisions;

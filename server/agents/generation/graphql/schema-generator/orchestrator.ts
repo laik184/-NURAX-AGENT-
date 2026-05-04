@@ -106,7 +106,7 @@ export function generateSchema(config: SchemaConfig): SchemaOutput {
       updateSchemaStatus("FAILED");
 
       logger.info("Schema generation failed validation.");
-      setLogs(logger.history());
+      setLogs(logger.history);
 
       return Object.freeze({
         success: false,
@@ -115,14 +115,14 @@ export function generateSchema(config: SchemaConfig): SchemaOutput {
         queries: queriesResult.definitions,
         mutations: mutationsResult.definitions,
         subscriptions: subscriptionsResult.definitions,
-        logs: logger.history(),
+        logs: logger.history,
         error: validation.errors.join("; "),
       });
     }
 
     updateSchemaStatus("COMPLETE");
     logger.info("Schema generation completed successfully.");
-    setLogs(logger.history());
+    setLogs(logger.history);
 
     return Object.freeze({
       success: true,
@@ -131,14 +131,14 @@ export function generateSchema(config: SchemaConfig): SchemaOutput {
       queries: queriesResult.definitions,
       mutations: mutationsResult.definitions,
       subscriptions: subscriptionsResult.definitions,
-      logs: logger.history(),
+      logs: logger.history,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown schema generation failure.";
     addError(message);
     updateSchemaStatus("FAILED");
     logger.info("Schema generation failed unexpectedly.");
-    setLogs(logger.history());
+    setLogs(logger.history);
 
     return Object.freeze({
       success: false,
@@ -147,7 +147,7 @@ export function generateSchema(config: SchemaConfig): SchemaOutput {
       queries: Object.freeze([]),
       mutations: Object.freeze([]),
       subscriptions: Object.freeze([]),
-      logs: logger.history(),
+      logs: logger.history,
       error: message,
     });
   }

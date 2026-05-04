@@ -7,7 +7,9 @@ export type AgentEventType =
   | "agent.thinking"
   | "agent.tool_call"
   | "agent.message"
+  | "agent.question"
   | "file.written"
+  | "file.diff"
   | "diff.queued";
 
 export interface AgentEvent {

@@ -203,7 +203,7 @@ export const ERROR_PATH_TEST_PATTERNS = Object.freeze<readonly RegExp[]>([
   /expect\.assertions\s*\(/g,
 ]);
 
-export const TEST_FRAMEWORK_PATTERNS = Object.freeze<readonly Array<{ rx: RegExp; label: string }>>([
+export const TEST_FRAMEWORK_PATTERNS = Object.freeze<ReadonlyArray<{ rx: RegExp; label: string }>>([
   { rx: /\bjest\b/gi,       label: "Jest" },
   { rx: /\bvitest\b/gi,     label: "Vitest" },
   { rx: /\bmocha\b/gi,      label: "Mocha" },

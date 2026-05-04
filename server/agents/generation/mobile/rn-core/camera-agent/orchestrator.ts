@@ -117,8 +117,8 @@ export function runCameraAgent(
       success: true,
       logs: Object.freeze(logs),
       data: Object.freeze(data),
-    });
+    }) as unknown as Readonly<CameraAgentResult<CameraOrchestratorData>>;
   } catch (error) {
-    return failureResult(logs, error);
+    return failureResult(logs, error) as unknown as Readonly<CameraAgentResult<CameraOrchestratorData>>;
   }
 }

@@ -19,21 +19,21 @@ import {
 } from "./utils/traversal.util.js";
 import {
   buildDependencyGraph, findRoots, findLeaves,
-} from "./graph-builder.agent.js";
+} from "./agents/graph-builder.agent.js";
 import {
   detectCycles, resetCycleDetectorCounter, cycleCount, modulesInCycles,
-} from "./cycle-detector.agent.js";
+} from "./agents/cycle-detector.agent.js";
 import {
   analyzeCoupling, mostUnstable, mostStable,
   highestFanOut, highestFanIn, criticalModules,
-} from "./coupling-analyzer.agent.js";
+} from "./agents/coupling-analyzer.agent.js";
 import {
   detectClusters, resetClusterDetectorCounter,
   largestCluster, isolatedModules, avgClusterCohesion,
-} from "./cluster-detector.agent.js";
+} from "./agents/cluster-detector.agent.js";
 import {
   computeMetrics, healthGrade, metricsSnapshot,
-} from "./metrics-computer.agent.js";
+} from "./agents/metrics-computer.agent.js";
 
 let passed = 0;
 let failed = 0;

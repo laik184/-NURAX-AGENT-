@@ -6,10 +6,10 @@ const SOURCE = "dependency-mapper";
 
 const ROLE_DEPENDENCIES: Readonly<Partial<Record<ServiceRole, readonly ServiceRole[]>>> =
   Object.freeze({
-    backend: Object.freeze(["database", "cache"]),
-    frontend: Object.freeze(["backend"]),
-    worker: Object.freeze(["database", "cache"]),
-    proxy: Object.freeze(["backend", "frontend"]),
+    backend: Object.freeze(["database", "cache"] as ServiceRole[]),
+    frontend: Object.freeze(["backend"] as ServiceRole[]),
+    worker: Object.freeze(["database", "cache"] as ServiceRole[]),
+    proxy: Object.freeze(["backend", "frontend"] as ServiceRole[]),
   });
 
 export interface DependencyMapperInput {

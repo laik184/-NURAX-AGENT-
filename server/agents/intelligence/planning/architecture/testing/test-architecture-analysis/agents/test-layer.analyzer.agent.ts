@@ -152,7 +152,7 @@ function checkFrameworkPresence(
   allFiles: readonly CodeFile[],
 ): TestArchIssue | null {
   const allContent  = allFiles.map((f) => f.content).join("\n");
-  const frameworks  = detectLibraries(allContent, TEST_FRAMEWORK_PATTERNS);
+  const frameworks  = detectLibraries(allContent, TEST_FRAMEWORK_PATTERNS as ReadonlyArray<{ rx: RegExp; label: string }>);
 
   if (frameworks.length > 0) return null;
 

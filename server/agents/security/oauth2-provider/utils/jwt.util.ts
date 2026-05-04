@@ -25,11 +25,11 @@ export function signJwt(payload: Omit<JwtPayload, "iat" | "jti"> & { iat?: numbe
   const header = base64UrlEncode(JSON.stringify({ alg: ALGORITHM, typ: "JWT" }));
 
   const now = Math.floor(Date.now() / 1000);
-  const fullPayload: JwtPayload = {
+  const fullPayload = {
     ...payload,
     iat: payload.iat ?? now,
     jti: payload.jti ?? randomBytes(16).toString("hex"),
-  };
+  } as JwtPayload;
 
   const body = base64UrlEncode(JSON.stringify(fullPayload));
   const signingInput = `${header}.${body}`;

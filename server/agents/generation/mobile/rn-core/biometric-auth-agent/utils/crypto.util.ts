@@ -6,13 +6,13 @@ const toHex = (bytes: Uint8Array): string =>
     .map((byte) => byte.toString(16).padStart(2, '0'))
     .join('');
 
-const fromHex = (hex: string): Uint8Array => {
+const fromHex = (hex: string): ArrayBuffer => {
   const normalized = hex.trim();
   const out = new Uint8Array(normalized.length / 2);
   for (let i = 0; i < normalized.length; i += 2) {
     out[i / 2] = parseInt(normalized.substring(i, i + 2), 16);
   }
-  return out;
+  return out.buffer as ArrayBuffer;
 };
 
 const getSubtle = (): SubtleCrypto => {
@@ -65,6 +65,6 @@ export const decryptAes = async (payload: string, secret: string): Promise<strin
   const iv = fromHex(parts[0]);
   const cipherBytes = fromHex(parts[1]);
   const key = await deriveAesKey(secret);
-  const plainBuffer = await subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes);
+  const plainBuffer = await subtle.decrypt({ name: 'AES-GCM', iv }, key, cipherBytes.buffer.slice(cipherBytes.byteOffset, cipherBytes.byteOffset + cipherBytes.byteLength) as ArrayBuffer);
   return decoder.decode(plainBuffer);
 };

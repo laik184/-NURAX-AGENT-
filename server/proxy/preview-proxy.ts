@@ -21,16 +21,17 @@ export function createPreviewProxy(): Router {
     const key = `${projectId}:${port}`;
     const existing = proxyCache.get(key);
     if (existing) return existing;
-    const opts: Options = {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const opts: any = {
       target: `http://127.0.0.1:${port}`,
       changeOrigin: true,
       ws: true,
       xfwd: true,
-      pathRewrite: (p) => p.replace(new RegExp(`^/${projectId}`), "") || "/",
-      onError: (err, _req, res) => {
+      pathRewrite: (p: string) => p.replace(new RegExp(`^/${projectId}`), "") || "/",
+      onError: (err: Error, _req: unknown, res: unknown) => {
         try {
-          // @ts-expect-error response is express
-          res.status(502).type("html").send(
+          const r = res as { status: (c: number) => { type: (t: string) => { send: (b: string) => void } } };
+          r.status(502).type("html").send(
             `<!doctype html><html><body style="font-family:system-ui;background:#0b1020;color:#e6e6f0;padding:40px">` +
             `<h2>Preview unavailable (502)</h2><p>${err.message}</p>` +
             `<p>The project process may still be starting. Refresh in a moment.</p></body></html>`,

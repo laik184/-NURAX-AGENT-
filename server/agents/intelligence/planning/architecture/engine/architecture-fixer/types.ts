@@ -81,6 +81,12 @@ export interface FixSession {
   readonly createdAt: number;
 }
 
+export interface FixerInput {
+  readonly violations: readonly RawViolation[];
+  readonly files: Readonly<Record<string, string>>;
+  readonly sessionId?: string;
+}
+
 export interface FixResult {
   readonly sessionId: string;
   readonly applied: boolean;

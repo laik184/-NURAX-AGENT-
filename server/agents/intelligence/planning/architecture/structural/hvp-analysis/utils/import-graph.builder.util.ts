@@ -103,7 +103,7 @@ export function detectCycles(edges: readonly ImportEdge[]): readonly string[][] 
   for (const node of adj.keys()) {
     if (!visited.has(node)) dfs(node, [node]);
   }
-  return Object.freeze(cycles.map((c) => Object.freeze(c)));
+  return cycles.map((c) => [...c]) as string[][];
 }
 
 export function filterViolatingEdges(

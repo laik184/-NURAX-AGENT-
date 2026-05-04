@@ -106,7 +106,7 @@ export async function executePipeline(input: PipelineInput): Promise<PipelineOut
     const validationResult = runPhase('validation', () => {
       const result = validate({
         code: input.input,
-        source: 'pipeline-input',
+        source: 'unknown' as const,
         agentId: requestId,
         context: input.context as Record<string, string> | undefined,
       });
@@ -124,7 +124,7 @@ export async function executePipeline(input: PipelineInput): Promise<PipelineOut
       const decision = decisionResult.data as {
         decision?: { selectedAgents?: string[]; selectedStrategy?: string; capabilities?: string[] };
       } | undefined;
-      const planData = planningResult.data as {
+      const planData = planningResult.data as unknown as {
         intent?: { requiredCapabilities?: string[] };
         capabilityMap?: { routes?: Array<{ capability: string }> };
       } | undefined;

@@ -11,10 +11,10 @@ import {
   classifyAgentType, classifyChannel, isKnownType,
   typeLabel, groupByType,
 } from "./utils/type.util.js";
-import { scanRegistry }   from "./registry-scanner.agent.js";
-import { evaluateStatus, filterActive, countByStatus } from "./status-evaluator.agent.js";
-import { mapVersions, latestVersion, filterValidVersions } from "./version-mapper.agent.js";
-import { buildMatrix, operationalCapabilities, capabilitiesByType } from "./capability-builder.agent.js";
+import { scanRegistry }   from "./agents/registry-scanner.agent.js";
+import { evaluateStatus, filterActive, countByStatus } from "./agents/status-evaluator.agent.js";
+import { mapVersions, latestVersion, filterValidVersions } from "./agents/version-mapper.agent.js";
+import { buildMatrix, operationalCapabilities, capabilitiesByType } from "./agents/capability-builder.agent.js";
 import type { AgentScanResult, EvaluatedStatus, MappedVersion } from "./types.js";
 
 let passed = 0;

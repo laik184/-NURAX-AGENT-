@@ -1,4 +1,4 @@
-import type { EvaluationResult, RetryDecision, FeedbackLoopState } from '../types.ts';
+import type { EvaluationResult, RetryDecision } from '../types.ts';
 import type { FeedbackLoopState as StateShape } from '../state.ts';
 import {
   maxAttemptsGuard,

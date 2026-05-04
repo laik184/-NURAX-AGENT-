@@ -20,6 +20,6 @@ export const disconnectHandlerAgent = (connectionId: string): boolean => {
   const namespace = websocketGeneratorState.namespaces.find((item) => item.name === connection.namespace);
   namespace?.connectionIds.delete(connectionId);
 
-  logMessage(`Connection closed: ${connectionId}`);
+  logMessage('ws-disconnect', `Connection closed: ${connectionId}`);
   return true;
 };

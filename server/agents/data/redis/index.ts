@@ -28,7 +28,6 @@ export { serialize, deserialize } from "./utils/serializer.util.js";
 
 export type {
   CachePayload,
-  EnumValidation,
   KeyConfig,
   PubSubMessage,
   RateLimitEntry,

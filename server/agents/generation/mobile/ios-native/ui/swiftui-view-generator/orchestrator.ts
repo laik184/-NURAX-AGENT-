@@ -1,4 +1,4 @@
-import { buildScreenView } from "./agents/view-builder.agent.js";
+import { buildRootView as buildScreenView } from "./agents/view-builder.agent.js";
 import { generateComponents } from "./agents/component-generator.agent.js";
 import { generateFormSection } from "./agents/form-generator.agent.js";
 import { generateLayout } from "./agents/layout-generator.agent.js";
@@ -59,7 +59,7 @@ export function generateSwiftUIView(config: Readonly<ScreenConfig>): SwiftUIView
     const navigatedSection = generateNavigation(layoutSection, config.navigation);
     state = addLog(state, "Navigation section generated.");
 
-    const body = buildScreenView(navigatedSection);
+    const body = buildScreenView(screenName, "", navigatedSection);
     const code = formatView(buildViewStruct(screenName, body));
 
     const finalLogs = appendLog(state.logs, "SwiftUI view generated successfully.");

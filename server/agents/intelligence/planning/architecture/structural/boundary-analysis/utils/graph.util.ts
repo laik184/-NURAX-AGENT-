@@ -123,5 +123,5 @@ export function detectCycles(
     if (!visited.has(n.id)) dfs(n.id, []);
   }
 
-  return Object.freeze(cycles.map((c) => Object.freeze(c)));
+  return cycles.map((c) => [...c]) as string[][];
 }

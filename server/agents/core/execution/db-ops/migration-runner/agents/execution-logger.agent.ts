@@ -1,5 +1,4 @@
-import { MigrationLog } from '../types.js';
-import { buildLog } from '../utils/logger.util.js';
+import type { MigrationLog } from '../types.js';
 
 interface LogRequest {
   executionId: string;
@@ -11,5 +10,12 @@ interface LogRequest {
 
 export const executionLoggerAgent = (logs: MigrationLog[], request: LogRequest): MigrationLog[] => [
   ...logs,
-  buildLog(request),
+  {
+    timestamp: new Date().toISOString(),
+    executionId: request.executionId,
+    level: request.level,
+    step: request.step,
+    message: request.message,
+    migration: request.migration,
+  },
 ];

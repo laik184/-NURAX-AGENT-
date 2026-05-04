@@ -1,3 +1,10 @@
+export type BindingConfig = {
+  readonly name: string;
+  readonly swiftType: string;
+  readonly propertyWrapper: string;
+  readonly defaultValue?: string;
+};
+
 export type LayoutType = "VStack" | "HStack" | "ZStack";
 
 export type ComponentType = "text" | "button" | "card" | "textfield" | "image" | "spacer";
@@ -14,6 +21,8 @@ export type ComponentConfig = {
   readonly actionName?: string;
   readonly destination?: string;
   readonly systemImage?: string;
+  readonly props?: Readonly<Record<string, unknown>>;
+  readonly children?: readonly ComponentConfig[];
 };
 
 export type LayoutConfig = {
@@ -24,8 +33,11 @@ export type LayoutConfig = {
 
 export type NavigationConfig = {
   readonly title?: string;
+  readonly enabled?: boolean;
   readonly useNavigationStack?: boolean;
   readonly useNavigationLinks?: boolean;
+  readonly useNavigationLink?: boolean;
+  readonly destinationView?: string;
 };
 
 export type ListConfig = {

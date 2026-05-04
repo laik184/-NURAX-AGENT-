@@ -211,7 +211,7 @@ export function createInventoryRouter(): Router {
       ts: Date.now(),
     });
     try {
-      const exec = await tool.run(args, { projectId });
+      const exec = await tool.run(args, { projectId, runId });
       bus.emit("agent.event", {
         runId,
         projectId,

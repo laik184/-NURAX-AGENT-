@@ -6,6 +6,6 @@ export const namespaceManagerAgent = (namespaces: string[]): Namespace[] => {
   const unique = Array.from(new Set(namespaces));
   const built = unique.map((name) => ({ name, connectionIds: new Set<string>() }));
   websocketGeneratorState.namespaces = built;
-  logMessage(`Namespaces configured: ${unique.join(', ')}`);
+  logMessage('ws-ns', `Namespaces configured: ${unique.join(', ')}`);
   return built;
 };

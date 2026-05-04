@@ -128,22 +128,22 @@ export const HVP_DEFAULT_LAYERS = Object.freeze<readonly LayerDefinition[]>([
   Object.freeze({
     level:       1,
     name:        "Orchestration",
-    roles:       Object.freeze(["orchestrator"]),
-    mayImport:   Object.freeze([2, 3]),
+    roles:       Object.freeze(["orchestrator"]) as readonly FileRole[],
+    mayImport:   Object.freeze([2, 3]) as readonly number[],
     description: "Only orchestrators live here. They coordinate layers 2 and 3.",
   }),
   Object.freeze({
     level:       2,
     name:        "Domain",
-    roles:       Object.freeze(["validator", "agent", "service"]),
-    mayImport:   Object.freeze([3]),
+    roles:       Object.freeze(["validator", "agent", "service"]) as readonly FileRole[],
+    mayImport:   Object.freeze([3]) as readonly number[],
     description: "Domain agents and validators. May import utils only.",
   }),
   Object.freeze({
     level:       3,
     name:        "Infrastructure",
-    roles:       Object.freeze(["util", "type", "state"]),
-    mayImport:   Object.freeze([]),
+    roles:       Object.freeze(["util", "type", "state"]) as readonly FileRole[],
+    mayImport:   Object.freeze([]) as readonly number[],
     description: "Pure utils, types, and state. No upstream imports.",
   }),
 ]);

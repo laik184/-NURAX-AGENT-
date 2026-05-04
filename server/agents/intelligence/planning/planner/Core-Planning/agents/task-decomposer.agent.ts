@@ -18,7 +18,7 @@ interface CategoryTaskSpec {
   readonly optional:        boolean;
 }
 
-const CATEGORY_SPECS: Readonly<Record<TaskCategory, readonly CategoryTaskSpec[]>> = Object.freeze({
+const CATEGORY_SPECS: Record<string, readonly CategoryTaskSpec[]> = Object.freeze({
   "infrastructure": Object.freeze([
     { type: "CONFIGURE", labelSuffix: "infrastructure",   descSuffix: "Set up server infrastructure, ports, and host settings.",           inputs: [],                        outputs: ["infra-config"],       estimatedEffort: 3, priority: 1,  optional: false },
   ]),

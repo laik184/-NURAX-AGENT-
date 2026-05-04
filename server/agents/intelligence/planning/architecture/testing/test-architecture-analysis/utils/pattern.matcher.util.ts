@@ -66,7 +66,7 @@ export function countPatternMatches(
 
 export function detectLibraries(
   content:  string,
-  patterns: readonly Array<{ rx: RegExp; label: string }>,
+  patterns: ReadonlyArray<{ rx: RegExp; label: string }>,
 ): readonly string[] {
   const found = new Set<string>();
   for (const { rx, label } of patterns) {

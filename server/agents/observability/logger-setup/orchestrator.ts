@@ -35,7 +35,6 @@ function fail(
   });
 
   const nextState = transitionState(state, {
-    status: "FAILED" as never,
     appendError: buildError(SOURCE, message),
     appendLog: buildLog(SOURCE, message),
   });

@@ -14,12 +14,12 @@ export const serverBootstrapAgent = async (config: ServerConfig): Promise<unknow
 
     websocketGeneratorState.server = server;
     websocketGeneratorState.status = 'RUNNING';
-    logMessage(`WebSocket server bootstrapped on port ${config.port}`);
+    logMessage('ws-bootstrap', `WebSocket server bootstrapped on port ${config.port}`);
     return server;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     websocketGeneratorState.status = 'ERROR';
-    logError(`Server bootstrap failed: ${message}`);
+    logError('ws-bootstrap', `Server bootstrap failed: ${message}`);
     throw error;
   }
 };

@@ -49,7 +49,7 @@ function generateSuggestions(fields: readonly FieldDefinition[]): readonly strin
   }
 
   const largeStringFields = fields.filter(
-    (f) => f.type === "String" && !f.validation?.maxLength && !f.validation?.range?.maxLength,
+    (f) => f.type === "String" && !f.validation?.range?.maxLength,
   );
   if (largeStringFields.length > 0) {
     suggestions.push(`Consider adding maxlength validation to: ${largeStringFields.map((f) => f.name).join(", ")}`);

@@ -93,12 +93,12 @@ export const stopWebSocketServerOrchestrator = async (config?: ServerConfig): Pr
     if (config?.closeServer && websocketGeneratorState.server) {
       await config.closeServer(websocketGeneratorState.server);
     }
-    logMessage('WebSocket server stopped');
+    logMessage('ws-server', 'WebSocket server stopped');
     websocketGeneratorState.server = null;
     websocketGeneratorState.status = 'INIT';
   } catch (error) {
     websocketGeneratorState.status = 'ERROR';
-    logError(error instanceof Error ? error.message : String(error));
+    logError('ws-server', error instanceof Error ? error.message : String(error));
   }
 
   return Object.freeze({

@@ -8,11 +8,11 @@ import type {
 import { clearAll, getSession, getRawResult, getSourceSummary } from "./state.js";
 import { normalizeId, normalizeName, normalizeSlug, normalizeTags, normalizeVersion, normalizePlatform, normalizeProtocol, normalizeExtension, metaString } from "./utils/normalizer.util.js";
 import { dedupeById, dedupeByName, dedupeByIdAndName, dedupeStrings, hasId } from "./utils/dedupe.util.js";
-import { discoverAgents, agentsByDomain, agentDomains } from "./agent-discovery.agent.js";
-import { discoverRuntimes, runtimesByPlatform, runtimePlatforms } from "./runtime-discovery.agent.js";
-import { discoverIntegrations, integrationsByType, integrationTypes } from "./integration-discovery.agent.js";
-import { discoverDeployments, deploymentsByTarget, deploymentTargets } from "./deployment-discovery.agent.js";
-import { discoverLanguages, languagesByEcosystem, languageEcosystems, languageExtensions } from "./language-discovery.agent.js";
+import { discoverAgents, agentsByDomain, agentDomains } from "./agents/agent-discovery.agent.js";
+import { discoverRuntimes, runtimesByPlatform, runtimePlatforms } from "./agents/runtime-discovery.agent.js";
+import { discoverIntegrations, integrationsByType, integrationTypes } from "./agents/integration-discovery.agent.js";
+import { discoverDeployments, deploymentsByTarget, deploymentTargets } from "./agents/deployment-discovery.agent.js";
+import { discoverLanguages, languagesByEcosystem, languageEcosystems, languageExtensions } from "./agents/language-discovery.agent.js";
 
 let passed = 0;
 let failed = 0;

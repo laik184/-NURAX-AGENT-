@@ -61,7 +61,7 @@ const BUILT_IN_POLICIES: readonly PolicyRule[] = Object.freeze([
       if (env["NODE_ENV"] !== "production") return [];
       const violations: string[] = [];
       for (const [k, v] of Object.entries(env)) {
-        if (v.includes("localhost") || v.includes("127.0.0.1")) {
+        if ((v as string).includes("localhost") || (v as string).includes("127.0.0.1")) {
           violations.push(`${k}: contains localhost reference in production`);
         }
       }

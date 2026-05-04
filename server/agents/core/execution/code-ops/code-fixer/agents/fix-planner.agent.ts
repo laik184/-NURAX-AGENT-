@@ -1,5 +1,5 @@
 import type { FixPlan, AutoFixStrategyAgent, SmellItem, FixStrategy } from "../types.js";
-import type { PatchType } from "../patch-engine/index.js";
+import type { PatchType } from "../../patch-engine/index.js";
 
 const PATCH_BY_SMELL: Readonly<Record<string, PatchType>> = Object.freeze({
   "large-file": "ASYNC_REFACTOR",

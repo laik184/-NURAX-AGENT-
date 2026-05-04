@@ -16,7 +16,7 @@ export const eventRouterAgent = (input: EventRouterInput): EventPayload => {
   const payload = parseIncomingEvent(input.payload);
   const validation = validatePayload(payload);
   if (!validation.valid) {
-    logError(`Rejected event: ${validation.error}`);
+    logError('ws-event', `Rejected event: ${validation.error}`);
     throw new Error(validation.error);
   }
 
@@ -24,7 +24,7 @@ export const eventRouterAgent = (input: EventRouterInput): EventPayload => {
   const history = rateLimitBuckets.get(payload.connectionId) ?? [];
   const activeWindow = history.filter((timestamp) => now - timestamp <= input.spamWindowMs);
   if (activeWindow.length >= input.spamMaxEvents) {
-    logError(`Spam prevention triggered for connection=${payload.connectionId}`);
+    logError('ws-event', `Spam prevention triggered for connection=${payload.connectionId}`);
     throw new Error('Rate limit exceeded');
   }
 
@@ -37,6 +37,6 @@ export const eventRouterAgent = (input: EventRouterInput): EventPayload => {
   }
 
   connection.lastEventAt = now;
-  logMessage(`Event routed event=${payload.event} connection=${payload.connectionId}`);
+  logMessage('ws-event', `Event routed event=${payload.event} connection=${payload.connectionId}`);
   return payload;
 };

@@ -15,14 +15,14 @@ import type {
   ResponseProfile,
   CacheProfile,
 } from "./index.js";
-import { analyzeCpuPatterns }         from "./performance/cpu-pattern.agent.js";
-import { analyzeMemoryPatterns }      from "./performance/memory-pattern.agent.js";
-import { analyzeLatencyPatterns }     from "./performance/latency-pattern.agent.js";
-import { suggestAsyncRefactors }      from "./code-optimization/async-suggestion.agent.js";
-import { detectSyncBlocking }         from "./code-optimization/sync-blocking.agent.js";
-import { recommendWorkerThreads }     from "./code-optimization/worker-thread.agent.js";
-import { detectCachingOpportunities } from "./code-optimization/caching-opportunity.agent.js";
-import { analyzePayloadOptimization } from "./payload/payload-optimizer.agent.js";
+import { analyzeCpuPatterns }         from "./performance/agents/cpu-pattern.agent.js";
+import { analyzeMemoryPatterns }      from "./performance/agents/memory-pattern.agent.js";
+import { analyzeLatencyPatterns }     from "./performance/agents/latency-pattern.agent.js";
+import { suggestAsyncRefactors }      from "./code-optimization/agents/async-suggestion.agent.js";
+import { detectSyncBlocking }         from "./code-optimization/agents/sync-blocking.agent.js";
+import { recommendWorkerThreads }     from "./code-optimization/agents/worker-thread.agent.js";
+import { detectCachingOpportunities } from "./code-optimization/agents/caching-opportunity.agent.js";
+import { analyzePayloadOptimization } from "./payload/agents/payload-optimizer.agent.js";
 import { rankSuggestions, buildSummary } from "./ranking/impact-ranker.js";
 import {
   impactToScore, scoreToImpact, clampScore,

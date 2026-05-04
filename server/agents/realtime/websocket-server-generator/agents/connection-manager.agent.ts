@@ -13,14 +13,14 @@ interface ConnectionInput {
 export const connectionManagerAgent = (input: ConnectionInput): SocketConnection => {
   if (websocketGeneratorState.activeConnections.length >= input.maxConnections) {
     const message = `Connection limit reached (${input.maxConnections})`;
-    logError(message);
+    logError('ws-connection', message);
     throw new Error(message);
   }
 
   const targetNamespace = websocketGeneratorState.namespaces.find((item) => item.name === input.namespace);
   if (!targetNamespace) {
     const message = `Namespace not found: ${input.namespace}`;
-    logError(message);
+    logError('ws-connection', message);
     throw new Error(message);
   }
 
@@ -36,6 +36,6 @@ export const connectionManagerAgent = (input: ConnectionInput): SocketConnection
 
   websocketGeneratorState.activeConnections.push(connection);
   targetNamespace.connectionIds.add(connection.id);
-  logMessage(`Connection opened: ${connection.id} namespace=${connection.namespace}`);
+  logMessage('ws-connection', `Connection opened: ${connection.id} namespace=${connection.namespace}`);
   return connection;
 };

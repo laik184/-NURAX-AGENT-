@@ -15,7 +15,7 @@ export const createRoom = (name: string): Room => {
       members: new Set<string>(),
       createdAt: Date.now(),
     };
-    logMessage(`Room created: ${name}`);
+    logMessage('ws-room', `Room created: ${name}`);
   }
 
   return websocketGeneratorState.rooms[name];
@@ -26,7 +26,7 @@ export const joinRoom = (connectionId: string, roomName: string): Room => {
   const room = createRoom(roomName);
   room.members.add(connectionId);
   connection.rooms.add(roomName);
-  logMessage(`Connection ${connectionId} joined room ${roomName}`);
+  logMessage('ws-room', `Connection ${connectionId} joined room ${roomName}`);
   return room;
 };
 
@@ -37,11 +37,11 @@ export const leaveRoom = (connectionId: string, roomName: string): Room | null =
 
   room.members.delete(connectionId);
   connection.rooms.delete(roomName);
-  logMessage(`Connection ${connectionId} left room ${roomName}`);
+  logMessage('ws-room', `Connection ${connectionId} left room ${roomName}`);
 
   if (room.members.size === 0) {
     delete websocketGeneratorState.rooms[roomName];
-    logMessage(`Room removed (empty): ${roomName}`);
+    logMessage('ws-room', `Room removed (empty): ${roomName}`);
     return null;
   }
 

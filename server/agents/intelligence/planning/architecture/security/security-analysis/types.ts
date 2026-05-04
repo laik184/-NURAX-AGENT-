@@ -140,7 +140,7 @@ export const ROUTE_DEFINITION_PATTERNS = Object.freeze<readonly RegExp[]>([
   /@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]/g,
 ]);
 
-export const SECRET_PATTERNS = Object.freeze<readonly Array<{ rx: RegExp; label: string; cwe: string }>>([
+export const SECRET_PATTERNS = Object.freeze<ReadonlyArray<{ rx: RegExp; label: string; cwe: string }>>([
   { rx: /(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{4,}['"]/gi,             label: "HARDCODED_PASSWORD",   cwe: "CWE-798" },
   { rx: /(?:api_?key|apikey)\s*[:=]\s*['"][A-Za-z0-9+/=_\-]{16,}['"]/gi,  label: "HARDCODED_API_KEY",    cwe: "CWE-798" },
   { rx: /(?:secret|secretkey|secret_?key)\s*[:=]\s*['"][^'"]{8,}['"]/gi,   label: "HARDCODED_SECRET",     cwe: "CWE-798" },

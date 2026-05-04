@@ -18,25 +18,25 @@ import {
   resetLayerValidatorCounter,
   upwardImports,
   layerBoundaryViolations,
-} from "./layer-boundary.validator.agent.js";
+} from "./agents/layer-boundary.validator.agent.js";
 import {
   validateDependencyDirections,
   resetDirectionValidatorCounter,
   illegalDirectionCount,
   circularDependencyCount,
-} from "./dependency-direction.validator.agent.js";
+} from "./agents/dependency-direction.validator.agent.js";
 import {
   detectDomainLeakage,
   resetDomainLeakageCounter,
   crossDomainViolations,
   infrastructureLeakageViolations,
-} from "./domain-leakage.detector.agent.js";
+} from "./agents/domain-leakage.detector.agent.js";
 import {
   compileReport,
   violationsByDomain,
   criticalViolations,
   sortedByScore,
-} from "./violation-reporter.agent.js";
+} from "./agents/violation-reporter.agent.js";
 
 let passed = 0;
 let failed = 0;
