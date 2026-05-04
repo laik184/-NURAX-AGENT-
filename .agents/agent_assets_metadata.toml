@@ -30,3 +30,9 @@ id = "bUsa8Z81UMeXJjI-3ljHX"
 uri = "file://SYSTEM_XRAY_REPORT.md"
 type = "text"
 title = "NURA X — Full System X-Ray Report"
+
+[[outputs]]
+id = "5NWq7LJPLrjIDXWRcI5e7"
+uri = "file://NURA_X_SYSTEMS_AUDIT.md"
+type = "text"
+title = "NURA X — Systems Audit Report"
