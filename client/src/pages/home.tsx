@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import {
   ChevronDown,
   Send,
@@ -16,10 +17,13 @@ import {
   Wand2,
   BarChart3,
   ChevronRight,
+  Clock,
+  Plus,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AgentsButton } from "@/components/AgentsHub";
-
+import type { Project } from "@shared/schema";
 
 const categories = [
   { id: "website", label: "Website", icon: Globe },
@@ -39,12 +43,37 @@ const examplePrompts = [
   ["Portfolio website", "Mobile expense tracker", "Code review bot"],
 ];
 
-const recentProjects = [
-  { id: "1", name: "Analytics Dashboard", type: "Data App", updated: "2h ago", color: "from-blue-500/30 to-violet-500/30" },
-  { id: "2", name: "NURA X Landing Page", type: "Website", updated: "Yesterday", color: "from-violet-500/30 to-purple-500/30" },
-  { id: "3", name: "Task Automation Bot", type: "AI Agent", updated: "3 days ago", color: "from-purple-500/30 to-pink-500/30" },
-  { id: "4", name: "Mobile Budget App", type: "Mobile", updated: "1 week ago", color: "from-cyan-500/30 to-blue-500/30" },
+const PROJECT_COLORS = [
+  "from-blue-500/30 to-violet-500/30",
+  "from-violet-500/30 to-purple-500/30",
+  "from-purple-500/30 to-pink-500/30",
+  "from-cyan-500/30 to-blue-500/30",
+  "from-emerald-500/30 to-cyan-500/30",
+  "from-orange-500/30 to-rose-500/30",
 ];
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days = Math.floor(diff / 86_400_000);
+  if (mins < 2) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  if (days < 2) return "Yesterday";
+  if (days < 7) return `${days} days ago`;
+  return `${Math.floor(days / 7)}w ago`;
+}
+
+function frameworkLabel(fw?: string | null): string {
+  if (!fw) return "Project";
+  const map: Record<string, string> = {
+    react: "React App", nextjs: "Next.js", express: "API / Code",
+    vite: "Website", nodejs: "Node.js", python: "Python",
+    mobile: "Mobile", data: "Data App", agent: "AI Agent",
+  };
+  return map[fw.toLowerCase()] ?? fw;
+}
 
 export default function Home() {
   const [, navigate] = useLocation();
@@ -54,26 +83,21 @@ export default function Home() {
   const [categoryOffset, setCategoryOffset] = useState(0);
   const visibleCategories = categories.slice(categoryOffset, categoryOffset + 5);
 
-  const handlePrevCategories = () => {
-    setCategoryOffset((prev) => Math.max(0, prev - 1));
-  };
+  const { data: projectsData, isLoading: projectsLoading } = useQuery<{ ok: boolean; data: Project[] }>({
+    queryKey: ["/api/projects"],
+    refetchInterval: 30_000,
+  });
 
-  const handleNextCategories = () => {
-    setCategoryOffset((prev) => Math.min(categories.length - 5, prev + 1));
-  };
+  const recentProjects = (projectsData?.data ?? []).slice(0, 4);
 
-  const handleRefreshPrompts = () => {
-    setPromptSet((prev) => (prev + 1) % examplePrompts.length);
-  };
-
-  const handlePromptClick = (prompt: string) => {
-    setInput(prompt);
-  };
+  const handlePrevCategories = () => setCategoryOffset((prev) => Math.max(0, prev - 1));
+  const handleNextCategories = () => setCategoryOffset((prev) => Math.min(categories.length - 5, prev + 1));
+  const handleRefreshPrompts = () => setPromptSet((prev) => (prev + 1) % examplePrompts.length);
+  const handlePromptClick = (prompt: string) => setInput(prompt);
 
   const handleSend = () => {
     if (!input.trim()) return;
-    const prompt = input.trim();
-    navigate(`/workspace?prompt=${encodeURIComponent(prompt)}`);
+    navigate(`/workspace?prompt=${encodeURIComponent(input.trim())}`);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -85,35 +109,18 @@ export default function Home() {
 
   return (
     <div className="flex-1 flex flex-col overflow-auto bg-[hsl(222,30%,7%)] relative">
-
       {/* Background orbs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden z-0">
         <div
           className="absolute rounded-full"
-          style={{
-            width: 600,
-            height: 600,
-            top: -200,
-            left: "50%",
-            transform: "translateX(-50%)",
-            background: "radial-gradient(circle, rgba(124,141,255,0.055) 0%, transparent 70%)",
-            filter: "blur(40px)",
-          }}
+          style={{ width: 600, height: 600, top: -200, left: "50%", transform: "translateX(-50%)", background: "radial-gradient(circle, rgba(124,141,255,0.055) 0%, transparent 70%)", filter: "blur(40px)" }}
         />
         <div
           className="absolute rounded-full"
-          style={{
-            width: 400,
-            height: 400,
-            bottom: 0,
-            left: "20%",
-            background: "radial-gradient(circle, rgba(167,139,250,0.04) 0%, transparent 70%)",
-            filter: "blur(60px)",
-          }}
+          style={{ width: 400, height: 400, bottom: 0, left: "20%", background: "radial-gradient(circle, rgba(167,139,250,0.04) 0%, transparent 70%)", filter: "blur(60px)" }}
         />
       </div>
 
-      {/* Main content */}
       <div className="relative z-10 flex flex-col items-center justify-start px-4 pt-16 pb-16 min-h-full">
 
         {/* Workspace selector */}
@@ -142,7 +149,6 @@ export default function Home() {
             className="rounded-2xl border border-white/10 bg-white/4 transition-all duration-200 focus-within:border-primary/35 focus-within:bg-white/5"
             style={{ boxShadow: "0 8px 40px rgba(0,0,0,0.3)" }}
           >
-            {/* Top toolbar */}
             <div className="flex items-center justify-between px-4 pt-3.5 pb-1">
               <div className="flex items-center gap-2">
                 {selectedCategory && (() => {
@@ -150,35 +156,20 @@ export default function Home() {
                   if (!cat) return null;
                   const Icon = cat.icon;
                   return (
-                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/30 text-primary text-xs font-medium flex-shrink-0 animate-fade-in-up">
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/15 border border-primary/30 text-primary text-xs font-medium flex-shrink-0">
                       <Icon className="h-3 w-3" />
                       <span>{cat.label}</span>
-                      <button
-                        onClick={() => setSelectedCategory(null)}
-                        className="ml-0.5 hover:text-white transition-colors"
-                        data-testid="button-remove-category-chip"
-                      >
-                        ×
-                      </button>
+                      <button onClick={() => setSelectedCategory(null)} className="ml-0.5 hover:text-white transition-colors" data-testid="button-remove-category-chip">×</button>
                     </div>
                   );
                 })()}
               </div>
-
               <div className="flex items-center gap-2 flex-shrink-0">
-                {/* Agents button */}
                 <AgentsButton size="md" />
-
-                {/* Send button */}
                 <button
                   onClick={handleSend}
                   disabled={!input.trim()}
-                  className={cn(
-                    "w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200",
-                    input.trim()
-                      ? "bg-gradient-to-br from-[#7c8dff] to-[#a78bfa] text-white hover:opacity-90"
-                      : "bg-white/5 text-muted-foreground/50 cursor-not-allowed"
-                  )}
+                  className={cn("w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-200", input.trim() ? "bg-gradient-to-br from-[#7c8dff] to-[#a78bfa] text-white hover:opacity-90" : "bg-white/5 text-muted-foreground/50 cursor-not-allowed")}
                   style={input.trim() ? { boxShadow: "0 0 16px rgba(124,141,255,0.45)" } : {}}
                   data-testid="button-send"
                 >
@@ -186,14 +177,9 @@ export default function Home() {
                 </button>
               </div>
             </div>
-
             <textarea
               value={input}
-              onChange={(e) => {
-                setInput(e.target.value);
-                e.target.style.height = "auto";
-                e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
-              }}
+              onChange={(e) => { setInput(e.target.value); e.target.style.height = "auto"; e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px"; }}
               onKeyDown={handleKeyDown}
               placeholder="Describe your app idea, Agent will bring it to life..."
               rows={1}
@@ -204,25 +190,15 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Example prompts — moved below input box */}
+        {/* Example prompts */}
         <div className="mt-4 flex flex-col items-center gap-2 w-full max-w-2xl">
-          <button
-            onClick={handleRefreshPrompts}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group"
-            data-testid="button-refresh-prompts"
-          >
+          <button onClick={handleRefreshPrompts} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors group" data-testid="button-refresh-prompts">
             <span>Try an example prompt</span>
             <RefreshCw className="h-3 w-3 group-hover:rotate-180 transition-transform duration-300" />
           </button>
-
           <div className="flex flex-wrap items-center justify-center gap-2">
             {examplePrompts[promptSet].map((prompt) => (
-              <button
-                key={prompt}
-                onClick={() => handlePromptClick(prompt)}
-                className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-foreground/80 hover:text-foreground hover:bg-white/8 hover:border-white/16 transition-all duration-200"
-                data-testid={`button-prompt-${prompt.toLowerCase().replace(/\s+/g, '-')}`}
-              >
+              <button key={prompt} onClick={() => handlePromptClick(prompt)} className="px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm text-foreground/80 hover:text-foreground hover:bg-white/8 hover:border-white/16 transition-all duration-200" data-testid={`button-prompt-${prompt.toLowerCase().replace(/\s+/g, '-')}`}>
                 {prompt}
               </button>
             ))}
@@ -231,52 +207,82 @@ export default function Home() {
 
         {/* Category icons */}
         <div className="flex items-center gap-3 mt-5 w-full max-w-2xl justify-center">
-          {/* Prev arrow */}
-          <button
-            onClick={handlePrevCategories}
-            disabled={categoryOffset === 0}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
-            data-testid="button-categories-prev"
-          >
+          <button onClick={handlePrevCategories} disabled={categoryOffset === 0} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0" data-testid="button-categories-prev">
             <ArrowLeft className="h-4 w-4" />
           </button>
-
-          {/* Category buttons */}
           <div className="flex items-center gap-2 flex-1 justify-center">
             {visibleCategories.map((cat) => {
               const Icon = cat.icon;
               const isSelected = selectedCategory === cat.id;
               return (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelectedCategory(isSelected ? null : cat.id)}
-                  className={cn(
-                    "flex flex-col items-center gap-2 px-4 py-3 rounded-2xl border transition-all duration-200 group min-w-[70px]",
-                    isSelected
-                      ? "bg-primary/15 border-primary/35 text-primary"
-                      : "bg-white/4 border-white/8 text-muted-foreground hover:text-foreground hover:bg-white/7 hover:border-white/14"
-                  )}
-                  style={isSelected ? { boxShadow: "0 0 16px rgba(124,141,255,0.2)" } : {}}
-                  data-testid={`button-category-${cat.id}`}
-                >
+                <button key={cat.id} onClick={() => setSelectedCategory(isSelected ? null : cat.id)} className={cn("flex flex-col items-center gap-2 px-4 py-3 rounded-2xl border transition-all duration-200 group min-w-[70px]", isSelected ? "bg-primary/15 border-primary/35 text-primary" : "bg-white/4 border-white/8 text-muted-foreground hover:text-foreground hover:bg-white/7 hover:border-white/14")} style={isSelected ? { boxShadow: "0 0 16px rgba(124,141,255,0.2)" } : {}} data-testid={`button-category-${cat.id}`}>
                   <Icon className={cn("h-5 w-5 transition-colors", isSelected ? "text-primary" : "group-hover:text-foreground")} />
                   <span className="text-xs font-medium">{cat.label}</span>
                 </button>
               );
             })}
           </div>
-
-          {/* Next arrow */}
-          <button
-            onClick={handleNextCategories}
-            disabled={categoryOffset >= categories.length - 5}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0"
-            data-testid="button-categories-next"
-          >
+          <button onClick={handleNextCategories} disabled={categoryOffset >= categories.length - 5} className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0" data-testid="button-categories-next">
             <ArrowRight className="h-4 w-4" />
           </button>
         </div>
 
+        {/* ── Recent Projects (live from DB) ─────────────────────── */}
+        <div className="mt-12 w-full max-w-2xl">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-widest" data-testid="heading-recent-projects">
+              Recent Projects
+            </h2>
+            <button
+              onClick={() => navigate("/apps")}
+              className="flex items-center gap-1 text-xs text-primary hover:text-primary/80 transition-colors"
+              data-testid="link-view-all-projects"
+            >
+              View all <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
+
+          {projectsLoading ? (
+            <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground text-sm" data-testid="loading-projects">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading projects...
+            </div>
+          ) : recentProjects.length === 0 ? (
+            <div
+              className="flex flex-col items-center justify-center py-12 rounded-2xl border border-white/8 bg-white/2 gap-3 cursor-pointer hover:bg-white/4 transition-colors"
+              onClick={() => navigate("/create")}
+              data-testid="empty-projects-cta"
+            >
+              <div className="w-10 h-10 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
+                <Plus className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">No projects yet — create your first one</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3" data-testid="grid-recent-projects">
+              {recentProjects.map((project, idx) => (
+                <button
+                  key={project.id}
+                  onClick={() => navigate(`/workspace/${project.id}`)}
+                  className="group relative flex flex-col justify-between p-4 rounded-2xl border border-white/8 bg-white/3 hover:bg-white/6 hover:border-white/14 transition-all duration-200 text-left overflow-hidden"
+                  style={{ boxShadow: "0 2px 16px rgba(0,0,0,0.2)" }}
+                  data-testid={`card-project-${project.id}`}
+                >
+                  <div className={cn("absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br", PROJECT_COLORS[idx % PROJECT_COLORS.length])} />
+                  <div className="relative z-10">
+                    <div className={cn("w-8 h-8 rounded-xl bg-gradient-to-br mb-3", PROJECT_COLORS[idx % PROJECT_COLORS.length])} />
+                    <p className="text-sm font-semibold text-foreground truncate" data-testid={`text-project-name-${project.id}`}>{project.name}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5" data-testid={`text-project-type-${project.id}`}>{frameworkLabel(project.framework)}</p>
+                  </div>
+                  <div className="relative z-10 flex items-center gap-1 mt-3 text-xs text-muted-foreground/70">
+                    <Clock className="h-3 w-3" />
+                    <span data-testid={`text-project-updated-${project.id}`}>{relativeTime(project.updatedAt as unknown as string)}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
 
       </div>
     </div>

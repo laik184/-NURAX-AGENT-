@@ -3,6 +3,8 @@ import { db } from "../db/index.ts";
 import { projects } from "../../shared/schema.ts";
 import { eq, desc } from "drizzle-orm";
 import { ensureProjectDir, projectRoot } from "../sandbox/sandbox.util.ts";
+import fs from "node:fs/promises";
+import path from "node:path";
 
 export function createProjectsRouter(): Router {
   const r = Router();
@@ -64,8 +66,20 @@ export function createProjectsRouter(): Router {
 
   r.delete("/:id", async (req: Request, res: Response) => {
     const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "invalid id" } });
+    }
+
+    // Delete from DB (cascade removes agentRuns, consoleLogs, etc.)
     await db.delete(projects).where(eq(projects.id, id));
-    res.json({ ok: true, data: { id } });
+
+    // Cleanup sandbox directory — best-effort, never block the response
+    const sandboxDir = projectRoot(id);
+    fs.rm(sandboxDir, { recursive: true, force: true }).catch((err) => {
+      console.warn(`[nura-x] sandbox cleanup failed for project ${id}:`, err.message);
+    });
+
+    res.json({ ok: true, data: { id, sandboxCleaned: true } });
   });
 
   return r;

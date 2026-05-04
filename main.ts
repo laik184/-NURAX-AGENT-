@@ -21,6 +21,7 @@ import { createRuntimeRouter } from './server/routes/runtime.routes.ts';
 import { createPreviewProxy } from './server/proxy/preview-proxy.ts';
 import { createSseRouter } from './server/streams/sse.ts';
 import { attachWebSocketServer } from './server/streams/ws-server.ts';
+import { startConsoleLogPersister } from './server/events/console-log-persister.ts';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -121,6 +122,9 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 
 const server = createServer(app);
 attachWebSocketServer(server);
+
+// Start background services
+startConsoleLogPersister();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[nura-x] API server running on port ${PORT}`);
