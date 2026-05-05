@@ -24,11 +24,43 @@ Frontend lives in `client/` (React + Vite on port 5000). Backend lives in `serve
 ### WebSocket channels
 - `/ws/terminal`, `/ws/execute/:sessionId`, `/ws/agent/:runId`, `/ws/files/:projectId`
 
-### Backend Reorganization — Platform Services (Apr 30 2026)
-High-cohesion / low-coupling restructure. Each plumbing concern outside `server/agents/` is now wrapped by an orchestrator in `server/agents/platform-services/<concern>/`, all registered centrally in `server/agents/core/pipeline/registry/orchestrator.registry.ts` under domain `'platform-services'`. The 9 concerns (persistence, event-bus, llm-client, preview-proxy, http-routes, sandbox, runtime-services, streams, tools) are NOT physically moved — `main.ts` imports stay intact.
+### Backend Reorganization — Category-Based Architecture (May 2026)
+Full restructure following High Cohesion / Low Coupling / Single Responsibility. No new business logic — only physical moves + import fixes. Scope excludes `server/agents/`.
+
+#### New directory layout
+
+```
+server/
+  core/                        ← platform-wide contracts (no deps on infra)
+    config/index.ts            ← central env/config loader
+    orchestrator.types.ts      ← PlatformServiceInput / PlatformServiceResult
+    orchestrator.ts            ← top-level platform dispatcher
+
+  infrastructure/              ← one folder per plumbing concern
+    db/                        ← Drizzle client + db orchestrator
+    events/                    ← EventBus + console-log-persister + events orchestrator
+    proxy/                     ← preview-proxy (http-proxy-middleware)
+    sandbox/                   ← sandbox.util.ts (resolveInSandbox, projectRoot, …)
+    deployer/                  ← deployer orchestrator
+    governance/                ← governance orchestrator
+
+  api/                         ← all HTTP route factories (was server/routes/)
+    compat/                    ← 9 thin compat sub-routers (was server/routes/compat/)
+    orchestrator.ts            ← api-layer dispatcher + re-exports
+
+  orchestration/               ← unchanged (controller, agent-loop, pipeline-runner, …)
+  services/                    ← unchanged (git, package-manager, project-runner, …)
+  tools/                       ← unchanged (registry, categories/…)
+  streams/                     ← unchanged (sse, ws-server, orchestrator)
+  llm/                         ← unchanged (openrouter.client, orchestrator)
+  agents/                      ← unchanged (out of scope)
+```
+
+#### Deleted old directories (fully replaced)
+`server/routes/`, `server/db/`, `server/events/`, `server/proxy/`, `server/sandbox/`, `server/config/`, `server/orchestrator.ts`, `server/orchestrator.types.ts`
 
 Oversized files were split (each <250 lines) without breaking public exports:
-- `server/routes/compat.routes.ts` (784) → 9 files under `server/routes/compat/` + thin assembler.
+- `server/routes/compat.routes.ts` (784) → 9 files under `server/api/compat/` + thin assembler.
 - `server/tools/registry.ts` (441) → `server/tools/categories/{file,shell,package,server-lifecycle,diagnostic,agent-control}-tools.ts` + `types.ts` + `util.ts` + thin assembler.
 - `server/orchestration/controller.ts` (351) → `runs.ts`, `code-files.ts`, `agent-loop-runner.ts`, `pipeline-runner.ts`, `event-persist.ts` + slim shell.
 - `server/services/project-runner.service.ts` (278) → `server/services/project-runner/{types,port-allocator,process-registry,command-detect}.ts`.
@@ -47,10 +79,10 @@ Real production-grade implementations replace earlier stubs. All sandboxed.
 - `resolveProjectId` now honors `x-project-id` header and lazy-creates project rows.
 
 ### Persistence
-Replit Postgres via Drizzle. Tables: `projects`, `chat_messages`, `agent_runs` (varchar id), `agent_events`, `artifacts`, `diff_queue`, `console_logs`. Schema in `shared/schema.ts`. Client in `server/db/index.ts`.
+Replit Postgres via Drizzle. Tables: `projects`, `chat_messages`, `agent_runs` (varchar id), `agent_events`, `artifacts`, `diff_queue`, `console_logs`. Schema in `shared/schema.ts`. Client in `server/infrastructure/db/index.ts`.
 
 ### Sandbox
-Each project gets `.sandbox/<projectId>/`. All FS ops + child_process exec are scoped via `server/sandbox/sandbox.util.ts`. `.sandbox` is gitignored.
+Each project gets `.sandbox/<projectId>/`. All FS ops + child_process exec are scoped via `server/infrastructure/sandbox/sandbox.util.ts`. `.sandbox` is gitignored.
 
 ### LLM
 OpenRouter via `server/llm/openrouter.client.ts`. Uses `OPENROUTER_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` (default `openai/gpt-oss-120b:free` so free-tier keys work out of the box; override with `anthropic/claude-3.5-sonnet` once you have credits).
@@ -68,7 +100,7 @@ Real ReAct loop using `chatWithTools`. System prompt teaches the model the opera
 ### Orchestration
 `server/orchestration/controller.ts` is the single entry for `/api/run`. Default mode = `"agent"` → routes to the new agent loop. `mode: "pipeline"` falls back to the legacy `executePipeline` (122 orchestrators across 9 domains in `server/agents/`) for benchmarking. Lifecycle: insert `agent_runs` row → fire-and-forget execute → events stream to `agent_events` via a single global `bus.on("agent.event")` subscriber → final `update agent_runs` with status + structured `result` JSON (steps, stopReason, summary, error).
 
-Event bus (`server/events/bus.ts`) is the single fan-out point — REST writes, SSE reads, WS reads, and DB persistence all subscribe through it.
+Event bus (`server/infrastructure/events/bus.ts`) is the single fan-out point — REST writes, SSE reads, WS reads, and DB persistence all subscribe through it.
 
 ---
 

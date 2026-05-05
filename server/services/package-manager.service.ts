@@ -2,8 +2,8 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { existsSync } from "node:fs";
-import { bus } from "../events/bus.ts";
-import { ensureProjectDir } from "../sandbox/sandbox.util.ts";
+import { bus } from "../infrastructure/events/bus.ts";
+import { ensureProjectDir } from "../infrastructure/sandbox/sandbox.util.ts";
 
 export interface InstallResult {
   ok: boolean;

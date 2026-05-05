@@ -1,5 +1,5 @@
 import type { Request } from "express";
-import { db } from "../db/index.ts";
+import { db } from "../infrastructure/db/index.ts";
 import { projects } from "../../shared/schema.ts";
 import { desc, eq } from "drizzle-orm";
 

@@ -1,4 +1,4 @@
-import { bus } from "../../events/bus.ts";
+import { bus } from "../../infrastructure/events/bus.ts";
 import { waitForAnswer } from "../../orchestration/question-bus.ts";
 import type { Tool } from "../types.ts";
 import { asString } from "../util.ts";

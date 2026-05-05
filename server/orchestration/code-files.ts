@@ -1,9 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
-import { db } from "../db/index.ts";
+import { db } from "../infrastructure/db/index.ts";
 import { diffQueue, artifacts } from "../../shared/schema.ts";
-import { bus, type AgentEvent } from "../events/bus.ts";
-import { ensureProjectDir, resolveInSandbox } from "../sandbox/sandbox.util.ts";
+import { bus, type AgentEvent } from "../infrastructure/events/bus.ts";
+import { ensureProjectDir, resolveInSandbox } from "../infrastructure/sandbox/sandbox.util.ts";
 import type { CodeFile } from "./types.ts";
 
 /**

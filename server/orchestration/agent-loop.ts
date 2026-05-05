@@ -1,6 +1,6 @@
 import { llm, type ToolMessage } from "../llm/openrouter.client.ts";
 import { TOOLS, TOOL_DEFS, getTool, TERMINAL_TOOL_NAMES, type ToolContext } from "../tools/registry.ts";
-import { bus } from "../events/bus.ts";
+import { bus } from "../infrastructure/events/bus.ts";
 import { buildSystemPrompt } from "../agents/core/llm/prompt-builder/agents/system-prompt.agent.js";
 
 export interface AgentLoopInput {

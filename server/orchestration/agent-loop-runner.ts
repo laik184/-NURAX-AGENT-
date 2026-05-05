@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 import { runAgentLoop } from "./agent-loop.ts";
-import { db } from "../db/index.ts";
+import { db } from "../infrastructure/db/index.ts";
 import { agentRuns } from "../../shared/schema.ts";
-import { bus, type AgentEvent } from "../events/bus.ts";
-import { ensureProjectDir } from "../sandbox/sandbox.util.ts";
+import { bus, type AgentEvent } from "../infrastructure/events/bus.ts";
+import { ensureProjectDir } from "../infrastructure/sandbox/sandbox.util.ts";
 import { clearCancel, isCancelled } from "./runs.ts";
 import type { RunHandle, RunInput } from "./types.ts";
 

@@ -1,6 +1,6 @@
 import { chat, chatWithTools, llm, streamChat } from "./openrouter.client.ts";
 import type { ChatMessage, ChatOptions, ChatResult, ToolDef, ToolMessage, ToolCallResult } from "./openrouter.client.ts";
-import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../orchestrator.types.ts";
+import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../core/orchestrator.types.ts";
 
 const SERVICE = "llm-client";
 

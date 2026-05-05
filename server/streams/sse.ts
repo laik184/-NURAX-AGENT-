@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { bus } from "../events/bus.ts";
+import { bus } from "../infrastructure/events/bus.ts";
 
 function setupSse(res: Response): void {
   res.setHeader("Content-Type", "text/event-stream");

@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
-import { ensureProjectDir, projectRoot } from "../../sandbox/sandbox.util.ts";
-import { bus } from "../../events/bus.ts";
+import { ensureProjectDir, projectRoot } from "../../infrastructure/sandbox/sandbox.util.ts";
+import { bus } from "../../infrastructure/events/bus.ts";
 import type { Tool } from "../types.ts";
 import { ARG_DENY_RE, SHELL_ALLOW, asString, asStringArray, trimOutput } from "../util.ts";
 

@@ -1,6 +1,6 @@
 import { createSseRouter } from "./sse.ts";
 import { attachWebSocketServer } from "./ws-server.ts";
-import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../orchestrator.types.ts";
+import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../core/orchestrator.types.ts";
 
 const SERVICE = "streams";
 

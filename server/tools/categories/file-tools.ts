@@ -1,7 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
-import { ensureProjectDir, projectRoot, resolveInSandbox } from "../../sandbox/sandbox.util.ts";
-import { bus } from "../../events/bus.ts";
+import { ensureProjectDir, projectRoot, resolveInSandbox } from "../../infrastructure/sandbox/sandbox.util.ts";
+import { bus } from "../../infrastructure/events/bus.ts";
 import type { Tool } from "../types.ts";
 import { asString, safeJoin } from "../util.ts";
 

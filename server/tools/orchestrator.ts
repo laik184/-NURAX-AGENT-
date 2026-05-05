@@ -1,5 +1,5 @@
 import { TOOLS, TOOL_DEFS, getTool, TERMINAL_TOOL_NAMES } from "./registry.ts";
-import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../orchestrator.types.ts";
+import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../core/orchestrator.types.ts";
 
 const SERVICE = "tools";
 

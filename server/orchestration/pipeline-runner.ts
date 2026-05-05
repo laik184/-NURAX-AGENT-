@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { executePipeline } from "../agents/core/pipeline/index.ts";
-import { db } from "../db/index.ts";
+import { db } from "../infrastructure/db/index.ts";
 import { agentRuns } from "../../shared/schema.ts";
-import { bus, type AgentEvent } from "../events/bus.ts";
+import { bus, type AgentEvent } from "../infrastructure/events/bus.ts";
 import { extractCodeFiles, writeFiles } from "./code-files.ts";
 import { clearCancel, isCancelled } from "./runs.ts";
 import type { RunHandle, RunInput } from "./types.ts";

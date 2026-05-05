@@ -2,9 +2,9 @@ import type { Server as HttpServer, IncomingMessage } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { spawn, type ChildProcessWithoutNullStreams } from "child_process";
 import chokidar from "chokidar";
-import { bus } from "../events/bus.ts";
-import { ensureProjectDir, projectRoot } from "../sandbox/sandbox.util.ts";
-import { getExecSession } from "../routes/solo-pilot.routes.ts";
+import { bus } from "../infrastructure/events/bus.ts";
+import { ensureProjectDir, projectRoot } from "../infrastructure/sandbox/sandbox.util.ts";
+import { getExecSession } from "../api/solo-pilot.routes.ts";
 
 function safeSend(ws: WebSocket, payload: unknown): void {
   if (ws.readyState !== ws.OPEN) return;

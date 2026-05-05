@@ -13,7 +13,7 @@ import type {
   SecretsService,
   RedactedEnv,
 } from "./index.ts";
-import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../orchestrator.types.ts";
+import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../core/orchestrator.types.ts";
 
 const SERVICE = "runtime-services";
 

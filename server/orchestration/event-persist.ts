@@ -1,6 +1,6 @@
-import { db } from "../db/index.ts";
+import { db } from "../infrastructure/db/index.ts";
 import { agentEvents } from "../../shared/schema.ts";
-import { bus } from "../events/bus.ts";
+import { bus } from "../infrastructure/events/bus.ts";
 
 let attached = false;
 
