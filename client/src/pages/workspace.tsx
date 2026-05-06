@@ -52,7 +52,7 @@ import { AgentMarkdown } from "@/components/AgentMarkdown";
 import { CheckpointCard, type CheckpointData } from "@/components/CheckpointCard";
 import { type AgentStreamItem } from "@/components/AgentActionFeed";
 import { generateMockDiffs, type FileDiff } from "@/components/FileDiffCard";
-import { ChatPanel } from "@/components/ChatPanel";
+import { ChatPanel } from "@/components/chat";
 
 function InvitePopup({ onClose }: { onClose: () => void }) {
   const [email, setEmail]       = useState("");
