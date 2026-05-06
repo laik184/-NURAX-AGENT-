@@ -1,5 +1,5 @@
 import WebPanel from './WebPanel';
-import { ConsolePanel } from './ConsolePanel';
+import { ConsolePanel } from './console';
 import PreviewPanel from './PreviewPanel';
 import DashboardPanel from './DashboardPanel';
 import ConflictResolverPanel from './ConflictResolverPanel';

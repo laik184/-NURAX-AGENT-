@@ -11,7 +11,7 @@ import { FaGithub } from "react-icons/fa";
 import { cn } from "@/lib/utils";
 import Preview from "@/pages/preview";
 import { DatabasePanel } from "@/components/DatabasePanel";
-import { ConsolePanel } from "@/components/ConsolePanel";
+import { ConsolePanel } from "@/components/console";
 import { PublishingPanel, AuthPanel } from "@/components/PublishingPanel";
 import { FileTreePanel } from "@/components/FileTreePanel";
 
