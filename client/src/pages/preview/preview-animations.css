@@ -1,0 +1,80 @@
+@keyframes so-orbit1 { from{transform:rotate(0deg) translateX(16px) rotate(0deg)} to{transform:rotate(360deg) translateX(16px) rotate(-360deg)} }
+@keyframes so-orbit2 { from{transform:rotate(120deg) translateX(11px) rotate(-120deg)} to{transform:rotate(480deg) translateX(11px) rotate(-480deg)} }
+@keyframes so-orbit3 { from{transform:rotate(240deg) translateX(7px) rotate(-240deg)} to{transform:rotate(600deg) translateX(7px) rotate(-600deg)} }
+@keyframes so-brain-pulse { 0%,100%{opacity:0.55;transform:scale(1)} 50%{opacity:1;transform:scale(1.12)} }
+@keyframes so-node-twinkle { 0%,100%{opacity:0.4;r:1.5} 50%{opacity:1;r:2.2} }
+@keyframes so-glow-pulse {
+  0%,100%{box-shadow:0 0 14px 3px rgba(99,102,241,0.5),0 0 32px 6px rgba(139,92,246,0.26),0 4px 24px rgba(0,0,0,0.55)}
+  50%{box-shadow:0 0 26px 8px rgba(99,102,241,0.8),0 0 56px 14px rgba(139,92,246,0.42),0 4px 28px rgba(0,0,0,0.6)}
+}
+@keyframes so-border-glow {
+  0%{border-color:rgba(99,102,241,0.45)}
+  33%{border-color:rgba(139,92,246,0.6)}
+  66%{border-color:rgba(167,139,250,0.55)}
+  100%{border-color:rgba(99,102,241,0.45)}
+}
+@keyframes so-err-pulse {
+  0%,100%{box-shadow:0 0 12px 3px rgba(239,68,68,0.45),0 0 28px 6px rgba(239,68,68,0.22),0 4px 20px rgba(0,0,0,0.6)}
+  50%{box-shadow:0 0 22px 8px rgba(239,68,68,0.72),0 0 48px 12px rgba(239,68,68,0.35),0 4px 24px rgba(0,0,0,0.65)}
+}
+@keyframes so-ok-pulse {
+  0%,100%{box-shadow:0 0 12px 3px rgba(34,197,94,0.45),0 0 28px 5px rgba(34,197,94,0.20),0 4px 20px rgba(0,0,0,0.55)}
+  50%{box-shadow:0 0 22px 7px rgba(34,197,94,0.70),0 0 44px 10px rgba(34,197,94,0.32),0 4px 24px rgba(0,0,0,0.6)}
+}
+@keyframes so-slide-up { from{opacity:0;transform:translateX(-50%) translateY(18px) scale(0.94)} to{opacity:1;transform:translateX(-50%) translateY(0) scale(1)} }
+@keyframes so-fade-in { from{opacity:0;transform:translateY(3px)} to{opacity:1;transform:translateY(0)} }
+@keyframes so-shimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
+@keyframes so-cursor { 0%,49%{opacity:1} 50%,100%{opacity:0} }
+@keyframes so-particle {
+  0%{transform:translate(0,0) scale(1);opacity:0.85}
+  60%{opacity:0.4}
+  100%{transform:translate(var(--px),var(--py)) scale(0.3);opacity:0}
+}
+@keyframes so-shake {
+  0%,100%{transform:translateX(-50%) translateY(0)}
+  15%{transform:translateX(calc(-50% - 4px)) translateY(0)}
+  30%{transform:translateX(calc(-50% + 4px)) translateY(0)}
+  45%{transform:translateX(calc(-50% - 3px)) translateY(0)}
+  60%{transform:translateX(calc(-50% + 3px)) translateY(0)}
+  75%{transform:translateX(calc(-50% - 1px)) translateY(0)}
+}
+@keyframes so-ring-out { 0%{transform:scale(1);opacity:0.65} 100%{transform:scale(2.6);opacity:0} }
+@keyframes so-ring-out-slow { 0%{transform:scale(1);opacity:0.45} 100%{transform:scale(3.2);opacity:0} }
+@keyframes so-check { from{stroke-dashoffset:22} to{stroke-dashoffset:0} }
+@keyframes so-spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes so-icon-bg {
+  0%{background:linear-gradient(135deg,rgba(99,102,241,0.28),rgba(139,92,246,0.22))}
+  50%{background:linear-gradient(135deg,rgba(139,92,246,0.32),rgba(167,139,250,0.26))}
+  100%{background:linear-gradient(135deg,rgba(99,102,241,0.28),rgba(139,92,246,0.22))}
+}
+@keyframes so-live-dot { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(1.35);opacity:0.75} }
+@keyframes so-data-line {
+  0%{stroke-dashoffset:20;opacity:0}
+  30%{opacity:1}
+  100%{stroke-dashoffset:0;opacity:0.6}
+}
+@keyframes pp-node-pulse {
+  0%,100%{opacity:0.55;transform:scale(1)}
+  50%{opacity:1;transform:scale(1.3)}
+}
+@keyframes pp-line-flow {
+  0%{stroke-dashoffset:30;opacity:0.15}
+  45%{opacity:0.75}
+  100%{stroke-dashoffset:0;opacity:0.15}
+}
+@keyframes pp-glow-ring {
+  0%,100%{filter:drop-shadow(0 0 6px rgba(99,102,241,0.55)) drop-shadow(0 0 18px rgba(139,92,246,0.28))}
+  50%{filter:drop-shadow(0 0 14px rgba(99,102,241,0.9)) drop-shadow(0 0 36px rgba(139,92,246,0.55))}
+}
+@keyframes pp-float {
+  0%,100%{transform:translateY(0px)}
+  50%{transform:translateY(-7px)}
+}
+@keyframes pp-msg-in {
+  from{opacity:0;transform:translateY(5px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes pp-outer-ring {
+  0%{transform:scale(1);opacity:0.5}
+  100%{transform:scale(2.2);opacity:0}
+}
