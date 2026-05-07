@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PreviewRuntimeService } from "../services/preview-runtime.service";
+import { PreviewRuntimeService } from "./preview-runtime.service";
 
 export const usePreviewRuntime = (projectId: string, projectPath: string) => {
   const [isRunning, setIsRunning] = useState(false);
