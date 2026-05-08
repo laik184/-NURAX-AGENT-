@@ -1,57 +1,51 @@
+/**
+ * tool-loop.executor.ts
+ *
+ * Run lifecycle executor for the tool-loop agent.
+ * This is NOT an agent — it is the run manager that:
+ *   1. Calls the real agent (server/agents/core/tool-loop/)
+ *   2. Handles DB updates (agentRuns table)
+ *   3. Emits run.lifecycle events on the bus
+ *   4. Handles cancellation
+ */
+
 import { eq } from "drizzle-orm";
-import { executePipeline } from "../../agents/core/pipeline/index.ts";
+import { runAgentLoop } from "../../agents/core/tool-loop/index.ts";
 import { db } from "../../infrastructure/db/index.ts";
 import { agentRuns } from "../../../shared/schema.ts";
 import { bus, type AgentEvent } from "../../infrastructure/events/bus.ts";
-import { extractCodeFiles, writeFiles } from "./code-files.ts";
-import { clearCancel, isCancelled } from "./runs.ts";
+import { ensureProjectDir } from "../../infrastructure/sandbox/sandbox.util.ts";
+import { clearCancel, isCancelled } from "./registry.ts";
 import type { RunHandle, RunInput } from "./types.ts";
 
 function emit(event: AgentEvent): void {
   bus.emit("agent.event", event);
 }
 
-export async function executePipelineRun(handle: RunHandle, input: RunInput): Promise<void> {
+export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Promise<void> {
   const { runId, projectId } = handle;
   try {
     emit({
       runId,
       projectId,
-      phase: "routing",
+      phase: "tool-loop",
       eventType: "phase.started",
-      payload: { goal: input.goal, mode: input.mode || "core" },
+      payload: { goal: input.goal, mode: "agent" },
       ts: Date.now(),
     });
 
-    const result = await executePipeline({
-      requestId: runId,
-      input: input.goal,
-      sessionId: `project-${projectId}`,
-      context: { ...(input.context || {}), projectId, mode: input.mode },
-      allowDestructive: false,
-      maxFeedbackAttempts: 3,
+    await ensureProjectDir(projectId);
+
+    const result = await runAgentLoop({
+      projectId,
+      runId,
+      goal: input.goal,
+      systemPrompt: input.systemPrompt,
+      maxSteps:
+        typeof input.context?.maxSteps === "number"
+          ? (input.context!.maxSteps as number)
+          : 25,
     });
-
-    for (const phase of result.phases) {
-      if (isCancelled(runId)) break;
-      emit({
-        runId,
-        projectId,
-        phase: phase.phase,
-        eventType: phase.success ? "phase.completed" : "phase.failed",
-        payload: {
-          durationMs: phase.durationMs,
-          error: phase.error,
-          data: phase.data,
-        },
-        ts: Date.now(),
-      });
-
-      const files = extractCodeFiles(phase.data);
-      if (files.length > 0) {
-        await writeFiles(projectId, files, runId);
-      }
-    }
 
     const finalStatus = isCancelled(runId)
       ? "cancelled"
@@ -59,14 +53,29 @@ export async function executePipelineRun(handle: RunHandle, input: RunInput): Pr
       ? "success"
       : "failed";
 
+    emit({
+      runId,
+      projectId,
+      phase: "tool-loop",
+      eventType: result.success ? "phase.completed" : "phase.failed",
+      payload: {
+        steps: result.steps,
+        stopReason: result.stopReason,
+        summary: result.summary,
+        error: result.error,
+      },
+      ts: Date.now(),
+    });
+
     await db
       .update(agentRuns)
       .set({
         status: finalStatus,
         endedAt: new Date(),
         result: {
-          finalPhase: result.finalPhase,
-          totalDurationMs: result.totalDurationMs,
+          steps: result.steps,
+          stopReason: result.stopReason,
+          summary: result.summary,
           error: result.error,
         } as any,
       })
@@ -85,6 +94,7 @@ export async function executePipelineRun(handle: RunHandle, input: RunInput): Pr
     emit({
       runId,
       projectId,
+      phase: "tool-loop",
       eventType: "phase.failed",
       payload: { error: message },
       ts: Date.now(),

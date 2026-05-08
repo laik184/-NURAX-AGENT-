@@ -1,13 +1,13 @@
 import { db } from "../../infrastructure/db/index.ts";
 import { agentRuns } from "../../../shared/schema.ts";
 import { bus } from "../../infrastructure/events/bus.ts";
-import { executeToolLoopRun } from "./tool-loop-runner.ts";
-import { executePipelineRun } from "./runner.ts";
+import { executeToolLoopRun } from "./tool-loop.executor.ts";
+import { executePipelineRun } from "./executor.ts";
 import { attachAgentEventPersister } from "./event-persist.ts";
-import { getRun, newRunId, registerRun, requestCancel } from "./runs.ts";
+import { getRun, newRunId, registerRun, requestCancel } from "./registry.ts";
 import type { RunHandle, RunInput } from "./types.ts";
 
-class PipelineController {
+class RunController {
   async runGoal(input: RunInput): Promise<RunHandle> {
     const runId = newRunId();
     const handle: RunHandle = {
@@ -52,6 +52,6 @@ class PipelineController {
   }
 }
 
-export const pipeline = new PipelineController();
+export const runManager = new RunController();
 
 attachAgentEventPersister();

@@ -2,9 +2,9 @@
  * ChatOrchestrator — Central controller for all chat functionality.
  *
  * Architecture:
- *   Pipeline → Orchestrator → Routes / Streams / Events
+ *   RunManager → Orchestrator → Routes / Streams / Events
  *
- * The pipeline layer (server/chat/pipeline/) drives agent execution.
+ * The run layer (server/chat/run/) manages agent run lifecycle.
  * The orchestrator wires together all sub-systems and exposes a single
  * surface that main.ts interacts with.
  */
@@ -23,16 +23,16 @@ import { createSseRouter }           from "./streams/sse.ts";
 import { attachWebSocketServer }     from "./streams/ws-server.ts";
 import { startConsoleLogPersister }  from "./events/console-log-persister.ts";
 
-import { pipeline }                  from "./pipeline/controller.ts";
-import { resolveQuestion }           from "./pipeline/question-bus.ts";
+import { runManager }                from "./run/controller.ts";
+import { resolveQuestion }           from "./run/question-bus.ts";
 
 class ChatOrchestrator {
   /**
-   * The pipeline is the execution engine.
-   * It controls agent runs and is the entry point for goal execution.
+   * The run manager controls agent run lifecycle.
+   * Entry point for starting, cancelling, and tracking runs.
    */
-  get pipeline() {
-    return pipeline;
+  get run() {
+    return runManager;
   }
 
   /**

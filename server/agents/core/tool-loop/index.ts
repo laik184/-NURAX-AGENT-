@@ -5,7 +5,7 @@
  * This is where the agent calls OpenRouter and uses sandbox tools
  * to accomplish goals step-by-step.
  *
- * Controlled by server/chat/pipeline/tool-loop-runner.ts which handles
+ * Controlled by server/chat/run/tool-loop.executor.ts which handles
  * DB writes, event emission, and lifecycle management.
  */
 
