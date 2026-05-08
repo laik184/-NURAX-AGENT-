@@ -538,11 +538,12 @@ const realtime: OrchestratorEntry[] = [
 ];
 
 // ─── CORE-PIPELINE — Phase orchestrators (7) ─────────────────────────────────
-// These are the orchestrators that the pipeline calls directly in its fixed
-// 9-phase sequence. They are registered here as well so that external tools
-// (capability discovery, dynamic dispatch, tests) can also find them by
-// capability. NOTE: the pipeline orchestrator itself is intentionally NOT
-// registered to prevent circular self-dispatch.
+// INTENTIONALLY NOT in ORCHESTRATOR_REGISTRY (the worker dispatch registry).
+// These orchestrators are called DIRECTLY by executePipeline() in its fixed
+// 9-phase sequence. Registering them for dispatch would allow Phase 6 to
+// re-invoke them mid-pipeline, corrupting shared pipeline state and causing
+// recursive execution.
+// Exported as PHASE_ORCHESTRATOR_REGISTRY for capability-discovery tooling ONLY.
 const corePipeline: OrchestratorEntry[] = [
   wrap('core:router', 'core-support', ['route', 'routing-intent', 'intent-detect', 'domain-route'],
     'Intent detection and domain routing (Phase 2)',
@@ -574,48 +575,74 @@ const corePipeline: OrchestratorEntry[] = [
 ];
 
 // ─── PLATFORM SERVICES (9) ────────────────────────────────────────────────────
-// Wrappers around server/{db,events,llm,proxy,routes,sandbox,services,streams,tools}.
-// Files are NOT moved — these orchestrators expose plumbing through the same
-// pattern as agent orchestrators so the central pipeline can dispatch to them.
+// INTENTIONALLY NOT in ORCHESTRATOR_REGISTRY (the worker dispatch registry).
+// These wrap orchestration-layer infrastructure: Express routers, SSE/WebSocket
+// handlers, the event bus, DB pool, and the LLM HTTP client. They are
+// coordination-layer components, not dispatchable worker units.
+//
+// Architectural violations if dispatched:
+//   - platform:http-routes  → Express route handlers (forbidden: route handlers)
+//   - platform:streams      → SSE/WebSocket handlers (forbidden: WebSocket managers)
+//   - platform:tools        → LLM tool registry (forbidden: tool-loop-runner)
+//   - platform:event-bus    → In-process event bus (forbidden: coordination layer)
+//   - platform:preview-proxy → HTTP proxy middleware (forbidden: HTTP services)
+//   - platform:persistence  → DB pool + ORM (forbidden: coordination layer)
+//   - platform:sandbox      → Filesystem scope util (forbidden: coordination layer)
+//   - platform:runtime-services → Runtime services (forbidden: orchestration service)
+//   - platform:llm-client   → Raw LLM HTTP client (forbidden: coordination layer)
+//
+// Exported as PLATFORM_SERVICES_REGISTRY for introspection/diagnostics ONLY.
+// Also note: several import paths were wrong (server/db, server/events, etc.)
+// and are corrected here with the proper infrastructure paths.
 const platformServices: OrchestratorEntry[] = [
   wrap('platform:persistence', 'platform-services', ['db', 'postgres', 'drizzle', 'persistence', 'database-pool'],
     'Postgres pool + Drizzle ORM access',
-    async () => { const m = await import('../../../../db/orchestrator.ts'); return (i: any) => m.runPersistenceOperation(i); }),
+    async () => { const m = await import('../../../infrastructure/db/orchestrator.ts'); return (i: any) => m.runPersistenceOperation(i); }),
 
   wrap('platform:event-bus', 'platform-services', ['events', 'event-bus', 'pubsub-internal', 'agent-events'],
     'Typed in-process event bus (agent.event, console.log, file.change, run.lifecycle)',
-    async () => { const m = await import('../../../../events/orchestrator.ts'); return (i: any) => m.runEventBusOperation(i); }),
+    async () => { const m = await import('../../../infrastructure/events/orchestrator.ts'); return (i: any) => m.runEventBusOperation(i); }),
 
-  wrap('platform:llm-client', 'platform-services', ['llm', 'chat', 'tool-calling', 'openrouter', 'completion'],
+  wrap('platform:llm-client', 'platform-services', ['llm', 'openrouter', 'completion', 'tool-calling'],
     'OpenRouter LLM HTTP client (chat, streamChat, chatWithTools)',
     async () => { const m = await import('../../../../llm/orchestrator.ts'); return (i: any) => m.runLlmOperation(i); }),
 
   wrap('platform:preview-proxy', 'platform-services', ['proxy', 'preview-routing', 'http-proxy', 'preview'],
     'Per-project preview proxy with WS upgrade',
-    async () => { const m = await import('../../../../proxy/orchestrator.ts'); return (i: any) => m.runPreviewProxyOperation(i); }),
+    async () => { const m = await import('../../../infrastructure/proxy/orchestrator.ts'); return (i: any) => m.runPreviewProxyOperation(i); }),
 
-  wrap('platform:http-routes', 'platform-services', ['http', 'rest', 'routes', 'express', 'api-routes'],
-    'Aggregates all Express router factories under server/routes/*',
-    async () => { const m = await import('../../../../routes/orchestrator.ts'); return (i: any) => m.runHttpRoutesOperation(i); }),
+  wrap('platform:http-routes', 'platform-services', ['http', 'rest', 'express', 'api-routes'],
+    'Aggregates all Express router factories under server/api/*',
+    async () => { throw new Error('platform:http-routes is an orchestration-layer component and cannot be dispatched as a worker'); }),
 
   wrap('platform:sandbox', 'platform-services', ['sandbox', 'path-isolation', 'project-fs'],
     'Per-project filesystem sandbox utilities',
-    async () => { const m = await import('../../../../sandbox/orchestrator.ts'); return (i: any) => m.runSandboxOperation(i); }),
+    async () => { const m = await import('../../../infrastructure/sandbox/orchestrator.ts'); return (i: any) => m.runSandboxOperation(i); }),
 
   wrap('platform:runtime-services', 'platform-services', ['services', 'runtime', 'process', 'fs-service', 'http-service', 'secrets'],
     'Runtime services (filesystem, http, secrets, git, package-manager, project-runner, shell.spawn)',
     async () => { const m = await import('../../../../services/orchestrator.ts'); return (i: any) => m.runRuntimeServicesOperation(i); }),
 
-  wrap('platform:streams', 'platform-services', ['sse', 'websocket', 'streaming', 'live-events'],
-    'SSE channels (11) + WebSocket channels (4) backed by the event bus',
-    async () => { const m = await import('../../../../streams/orchestrator.ts'); return (i: any) => m.runStreamsOperation(i); }),
+  wrap('platform:streams', 'platform-services', ['sse', 'streaming', 'live-events'],
+    'SSE channels backed by the event bus',
+    async () => { throw new Error('platform:streams is an orchestration-layer component and cannot be dispatched as a worker'); }),
 
   wrap('platform:tools', 'platform-services', ['tool-registry', 'agent-tools', 'tool-defs'],
     'LLM-callable tool registry (file ops, shell, server lifecycle, packages, agent control)',
     async () => { const m = await import('../../../../tools/orchestrator.ts'); return (i: any) => m.runToolsOperation(i); }),
 ];
 
-// ─── FULL REGISTRY ────────────────────────────────────────────────────────────
+// ─── WORKER DISPATCH REGISTRY ────────────────────────────────────────────────
+// Only worker units (generators, builders, analyzers, transformers, executors)
+// belong here. Orchestration-layer components (phase orchestrators, platform
+// services, route handlers, WebSocket managers) are EXCLUDED.
+//
+// EXCLUDED groups and why:
+//   corePipeline    → Phase orchestrators already called directly by executePipeline().
+//                     Including them allows Phase 6 to re-invoke them, corrupting
+//                     shared pipeline state and risking recursive execution.
+//   platformServices → Orchestration-layer infrastructure (http-routes, streams,
+//                     tools, event-bus, preview-proxy) — forbidden by architecture.
 export const ORCHESTRATOR_REGISTRY: readonly OrchestratorEntry[] = Object.freeze([
   ...generationBackend,
   ...generationFrontend,
@@ -630,11 +657,74 @@ export const ORCHESTRATOR_REGISTRY: readonly OrchestratorEntry[] = Object.freeze
   ...coreLLM,
   ...coreExecution,
   ...coreContext,
-  ...corePipeline,
   ...data,
   ...realtime,
+]);
+
+// ─── PHASE ORCHESTRATOR REGISTRY (discovery/tooling only — NOT for dispatch) ──
+// Exposes the 7 fixed-phase orchestrators for capability discovery tools and
+// tests. Must NEVER be passed to dispatch() or the dispatcher.
+export const PHASE_ORCHESTRATOR_REGISTRY: readonly OrchestratorEntry[] = Object.freeze([
+  ...corePipeline,
+]);
+
+// ─── PLATFORM SERVICES REGISTRY (introspection/diagnostics only) ─────────────
+// Exposes platform service descriptors for diagnostics and health checks.
+// Must NEVER be passed to dispatch() or the dispatcher.
+export const PLATFORM_SERVICES_REGISTRY: readonly OrchestratorEntry[] = Object.freeze([
   ...platformServices,
 ]);
+
+// ─── FORBIDDEN DISPATCH IDs ───────────────────────────────────────────────────
+// Any ID in this set must never appear in ORCHESTRATOR_REGISTRY.
+// Used by assertRegistryIntegrity() and the dispatcher guard.
+export const FORBIDDEN_DISPATCH_IDS: ReadonlySet<string> = new Set([
+  // Phase orchestrators
+  'core:router', 'intel:decision-engine', 'intel:planner-boss',
+  'intel:validation-engine', 'core:recovery', 'intel:feedback-loop', 'core:memory',
+  // Platform services
+  'platform:persistence', 'platform:event-bus', 'platform:llm-client',
+  'platform:preview-proxy', 'platform:http-routes', 'platform:sandbox',
+  'platform:runtime-services', 'platform:streams', 'platform:tools',
+]);
+
+// ─── FORBIDDEN DISPATCH DOMAINS ──────────────────────────────────────────────
+// Domains that must never be targets of worker dispatch.
+export const FORBIDDEN_DISPATCH_DOMAINS: ReadonlySet<OrchestratorDomain> = new Set<OrchestratorDomain>([
+  'platform-services',
+]);
+
+// ─── REGISTRY INTEGRITY ASSERTION ────────────────────────────────────────────
+// Call once at startup (or in tests) to verify no forbidden units slipped in.
+export function assertRegistryIntegrity(): void {
+  const ids = new Set<string>();
+  for (const entry of ORCHESTRATOR_REGISTRY) {
+    // Duplicate ID check
+    if (ids.has(entry.id)) {
+      throw new Error(`[registry] Duplicate entry ID detected: "${entry.id}"`);
+    }
+    ids.add(entry.id);
+
+    // Forbidden ID check
+    if (FORBIDDEN_DISPATCH_IDS.has(entry.id)) {
+      throw new Error(
+        `[registry] Forbidden entry "${entry.id}" found in ORCHESTRATOR_REGISTRY. ` +
+        `Orchestration-layer components must not be registered for dispatch.`,
+      );
+    }
+
+    // Forbidden domain check
+    if (FORBIDDEN_DISPATCH_DOMAINS.has(entry.domain)) {
+      throw new Error(
+        `[registry] Entry "${entry.id}" has forbidden domain "${entry.domain}". ` +
+        `Platform-services components must not be registered for dispatch.`,
+      );
+    }
+  }
+}
+
+// Run integrity check at module load time to catch violations immediately.
+assertRegistryIntegrity();
 
 export function getRegistryStats() {
   const byDomain: Record<string, number> = {};

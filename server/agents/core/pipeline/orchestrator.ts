@@ -20,9 +20,44 @@ import { validate } from '../../intelligence/validation-engine/orchestrator.ts';
 import { recover } from '../recovery/orchestrator.ts';
 import { runFeedbackLoop } from '../../intelligence/feedback-loop/orchestrator.ts';
 import { processMemory } from '../memory/orchestrator.ts';
-import { dispatch, getRegistryStats } from './registry/dispatcher.ts';
+import { dispatch, getRegistryStats, WORKER_DISPATCH_DOMAINS, type DispatchRequest } from './registry/dispatcher.ts';
+import type { OrchestratorDomain } from './registry/orchestrator.registry.ts';
 
 const DEFAULT_MAX_FEEDBACK_ATTEMPTS = 3;
+
+// ─── RECURSION DEPTH GUARD ────────────────────────────────────────────────────
+// Prevents re-entrant calls to executePipeline() with the same requestId.
+// A requestId should only be executing once at any given moment. If it appears
+// here, it means a dispatch path looped back into executePipeline() — crash fast
+// with a clear error instead of stack-overflowing.
+const _activePipelines = new Map<string, number>();
+const MAX_PIPELINE_DEPTH = 1;
+
+function enterPipeline(requestId: string): void {
+  const depth = (_activePipelines.get(requestId) ?? 0) + 1;
+  if (depth > MAX_PIPELINE_DEPTH) {
+    throw new Error(
+      `[executePipeline] Recursion guard triggered for requestId="${requestId}". ` +
+      `executePipeline is already executing at depth=${depth - 1}. ` +
+      `A dispatch path is looping back into the pipeline — check the worker registry for orchestration-layer components.`,
+    );
+  }
+  _activePipelines.set(requestId, depth);
+}
+
+function exitPipeline(requestId: string): void {
+  const depth = _activePipelines.get(requestId) ?? 0;
+  if (depth <= 1) {
+    _activePipelines.delete(requestId);
+  } else {
+    _activePipelines.set(requestId, depth - 1);
+  }
+}
+
+// ─── WORKER-ONLY DOMAIN FILTER FOR PHASE 6 ───────────────────────────────────
+// Phase 6 dispatch must only target worker domains, never orchestration-layer
+// components (core-support phase orchestrators, platform-services).
+const PHASE6_DOMAIN_FILTER: readonly OrchestratorDomain[] = Object.freeze([...WORKER_DISPATCH_DOMAINS] as OrchestratorDomain[]);
 
 function makeRequestId(): string {
   return `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -33,6 +68,9 @@ export async function executePipeline(input: PipelineInput): Promise<PipelineOut
   const startedAt = Date.now();
   const phases: PhaseResult[] = [];
   const logs: string[] = [];
+
+  // ── Recursion guard: fail fast if this requestId is already executing ────────
+  enterPipeline(requestId);
 
   clearErrors();
   initPipeline(requestId);
@@ -139,10 +177,14 @@ export async function executePipeline(input: PipelineInput): Promise<PipelineOut
         routeData.module,
       ].filter(Boolean);
 
+      // ── Phase 6 domain filter: only worker domains, never orchestration-layer ─
+      // This prevents phase orchestrators (core-support) and platform services
+      // from being re-dispatched mid-pipeline.
       const dispatchResult = await dispatch({
         capabilities: Object.freeze([...new Set(caps)]),
         input: Object.freeze({ requestId, userInput: input.input, context: input.context }),
         maxOrchestrators: 5,
+        domainFilter: PHASE6_DOMAIN_FILTER,
       });
 
       return Object.freeze({
@@ -229,6 +271,7 @@ export async function executePipeline(input: PipelineInput): Promise<PipelineOut
     recordRun(true, Date.now() - startedAt);
 
     logs.push(`[pipeline] ✓ COMPLETE ${buildPhaseSummary(phases)}`);
+    exitPipeline(requestId);
     return collectResults(requestId, phases, startedAt);
 
   } catch (err) {
@@ -247,6 +290,7 @@ export async function executePipeline(input: PipelineInput): Promise<PipelineOut
     }));
 
     clearState();
+    exitPipeline(requestId);
     return collectResults(requestId, phases, startedAt);
   }
 }
