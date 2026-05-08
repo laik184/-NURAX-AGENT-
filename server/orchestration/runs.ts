@@ -1,5 +1,13 @@
 import { chatOrchestrator } from "../chat/index.ts";
+
 export function getRunRegistry() {
   return chatOrchestrator.runRegistry;
 }
-export { newRunId, getRun, registerRun, requestCancel, isCancelled, clearCancel, cancellations } from "../chat/run/registry.ts";
+
+export function getRun(runId: string) {
+  return chatOrchestrator.run.get(runId);
+}
+
+export function cancelRun(runId: string) {
+  return chatOrchestrator.run.cancel(runId);
+}
