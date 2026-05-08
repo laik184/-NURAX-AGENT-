@@ -18,6 +18,21 @@ export function ChatInput({ chatInput, setChatInput, chatInputRef, isAgentThinki
   const popupRef = useRef<HTMLDivElement>(null);
   const isBusy = isAgentThinking || isAgentTyping;
 
+  const handleFilesChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+    const projectId = Number(window.localStorage.getItem("nura.projectId") || "1") || 1;
+    const fd = new FormData();
+    fd.append("projectId", String(projectId));
+    Array.from(fileList).forEach((f) => fd.append("files", f));
+    try {
+      await fetch("/api/chat/upload", { method: "POST", body: fd });
+    } catch (err) {
+      console.warn("[chat] file upload failed:", err);
+    }
+    e.target.value = "";
+  };
+
   useEffect(() => {
     if (!showPopup) return;
     const handler = (e: MouseEvent) => {
@@ -62,7 +77,7 @@ export function ChatInput({ chatInput, setChatInput, chatInputRef, isAgentThinki
                   <label data-testid="button-chat-popup-upload-file"
                     className="flex items-center gap-3 w-full px-4 py-3 text-left text-xs text-white/75 hover:bg-white/6 hover:text-white transition-colors cursor-pointer"
                     onClick={() => setShowPopup(false)}>
-                    <input type="file" multiple accept=".pdf,.zip,.tar,.gz,.txt,.csv,.json,.md" className="hidden" />
+                    <input type="file" multiple accept=".pdf,.zip,.tar,.gz,.txt,.csv,.json,.md" className="hidden" onChange={handleFilesChange} />
                     <Paperclip className="h-3.5 w-3.5 text-[#7c8dff] flex-shrink-0" />
                     <span>Upload File</span>
                   </label>
@@ -70,7 +85,7 @@ export function ChatInput({ chatInput, setChatInput, chatInputRef, isAgentThinki
                   <label data-testid="button-chat-popup-upload-photo"
                     className="flex items-center gap-3 w-full px-4 py-3 text-left text-xs text-white/75 hover:bg-white/6 hover:text-white transition-colors cursor-pointer"
                     onClick={() => setShowPopup(false)}>
-                    <input type="file" accept="image/*" multiple className="hidden" />
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={handleFilesChange} />
                     <ImageIcon className="h-3.5 w-3.5 text-[#a78bfa] flex-shrink-0" />
                     <span>Upload Photo</span>
                   </label>

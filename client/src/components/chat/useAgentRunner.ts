@@ -107,8 +107,19 @@ export function useAgentRunner() {
             setActiveAction({ type: "action", tool: "analysis.think", content: e.payload?.text || `Thinking${e.agentName ? ` (${e.agentName})` : ""}…`, status: "running" });
             break;
           case "agent.tool_call": {
-            const tool = e.payload?.tool || "tool.call";
-            const item: AgentStreamItem = { type: "action", tool, content: e.payload?.label || tool.replace(/\./g, " "), status: "running", meta: e.payload?.args ? { logs: JSON.stringify(e.payload.args, null, 2).slice(0, 600) } : undefined };
+            const tool   = e.payload?.tool   || "tool.call";
+            const status = e.payload?.status;
+            // task_complete fires BEFORE the agent.message event — use it to show typing dots
+            if (tool === "task_complete" && status === "running") {
+              flushGroup();
+              setIsAgentTyping(true);
+              setIsAgentThinking(false);
+              setActiveAction(null);
+              break;
+            }
+            // "done"/"error" status updates are handled by the lifecycle handler — skip here
+            if (status === "done" || status === "error") break;
+            const item: AgentStreamItem = { type: "action", tool, content: e.payload?.label || tool.replace(/_/g, " "), status: "running", meta: e.payload?.args ? { logs: JSON.stringify(e.payload.args, null, 2).slice(0, 600) } : undefined };
             inflight.set(toolKey(tool, e.phase), item);
             setActiveAction(item);
             break;
@@ -136,7 +147,7 @@ export function useAgentRunner() {
           }
           case "file.written": {
             const path = e.payload?.path || "(file)";
-            inflight.set(`file::${path}`, { type: "action", tool: "file.write", content: `Wrote ${path}`, status: "done", meta: { file: path } });
+            inflight.set(`file::${path}`, { type: "action", tool: "file_write", content: `Wrote ${path}`, status: "done", meta: { file: path } });
             break;
           }
           case "diff.queued": {

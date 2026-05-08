@@ -2,6 +2,7 @@ import { llm, type ToolMessage } from "../llm/openrouter.client.ts";
 import { TOOLS, TOOL_DEFS, getTool, TERMINAL_TOOL_NAMES, type ToolContext } from "../tools/registry.ts";
 import { bus } from "../infrastructure/events/bus.ts";
 import { buildSystemPrompt } from "../agents/core/llm/prompt-builder/agents/system-prompt.agent.js";
+import { TOOL_REFERENCE } from "./tool-reference.ts";
 
 export interface AgentLoopInput {
   readonly projectId: number;
@@ -20,32 +21,6 @@ export interface AgentLoopResult {
   readonly error?: string;
 }
 
-const TOOL_REFERENCE = `
-You operate inside a per-user sandbox at the project root. You have these tools:
-
-- file_list({path?, maxDepth?}) → directory tree
-- file_read({path}) → file content
-- file_write({path, content}) → create or overwrite a file (creates parent dirs)
-- file_delete({path}) → delete file or directory
-- shell_exec({command, args?, timeoutMs?}) → run an allow-listed binary (npm, npx, node, git, tsx, vite, ls, cat, head, tail, echo, mkdir, touch, grep, find, python). NO shell metacharacters in args.
-- package_install({packages, dev?}) → npm install (empty array = npm install with existing package.json)
-- server_start({}) / server_stop({}) / server_restart({}) → control the dev server. Returns the preview URL path.
-- server_logs({tail?}) → recent dev-server stdout/stderr (use to find runtime errors)
-- detect_missing_packages({}) → scan logs for "Cannot find module X" and return missing npm package names
-- agent_message({text}) → user-visible status message (sparingly)
-- agent_question({text, options}) → ask the user a clarifying question and WAIT for their answer. Use ONLY when you cannot make a sensible default choice (e.g. "PostgreSQL or MySQL?"). Provide 2–5 short option strings. The loop pauses until the user clicks.
-- task_complete({summary}) → call ONCE when the goal is done; this ends the loop
-
-TOOL RULES:
-- Always work INSIDE the sandbox; never assume files outside the project root.
-- For a brand-new project: create package.json with {"scripts":{"dev":"..."}} so server_start works.
-- For React/Vite apps: prefer Vite + React + TypeScript; entry index.html; src/main.tsx; vite.config.ts must use \`server: { host: "0.0.0.0", port: Number(process.env.PORT) || 5173, allowedHosts: true }\` so the preview iframe works.
-- For Express/Node apps: bind to \`process.env.PORT\` and \`0.0.0.0\`.
-- Keep individual file_write calls focused (one file per call).
-- After install + restart, ALWAYS check server_logs to confirm it actually started; fix errors before declaring done.
-- Be concise; the user sees every tool call live.
-- Only call agent_question when there is genuinely no good default (e.g. which paid service to use). For everything else, make a reasonable choice and proceed without asking.
-- When the goal is achieved, call task_complete({summary}). Do not output a long final message — task_complete IS the final message.`;
 
 export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResult> {
   const maxSteps = input.maxSteps ?? 25;
@@ -188,18 +163,32 @@ function emit(runId: string, eventType: string, phase: string, payload: unknown)
 }
 
 function summariseArgs(tool: string, args: Record<string, unknown>): unknown {
-  // Don't ship full file contents through SSE — UI doesn't need them
   if (tool === "file_write" && typeof args.content === "string") {
     return { path: args.path, bytes: (args.content as string).length };
   }
+  if (tool === "file_replace") {
+    return { path: args.path, old_bytes: (args.old_string as string)?.length, new_bytes: (args.new_string as string)?.length };
+  }
   if (tool === "file_read" || tool === "file_delete" || tool === "file_list") {
     return { path: args.path };
+  }
+  if (tool === "file_search") {
+    return { pattern: args.pattern, path: args.path, glob: args.glob };
   }
   if (tool === "shell_exec") {
     return { command: args.command, args: args.args };
   }
   if (tool === "package_install") {
     return { packages: args.packages, dev: args.dev };
+  }
+  if (tool === "env_write") {
+    return { key: args.key, path: args.path };   // never surface value — may be a secret
+  }
+  if (tool === "git_commit") {
+    return { message: args.message };
+  }
+  if (tool === "git_add") {
+    return { paths: args.paths ?? "all" };
   }
   return args;
 }
@@ -211,11 +200,19 @@ function summariseResult(tool: string, exec: { ok: boolean; result?: unknown; er
     return { path: r.path, bytes: r.content?.length ?? 0 };
   }
   if (tool === "file_list") return { ok: true };
+  if (tool === "file_search" && exec.result && typeof exec.result === "object") {
+    const r = exec.result as { count?: number; truncated?: boolean };
+    return { count: r.count, truncated: r.truncated };
+  }
+  if (tool === "file_replace" && exec.result && typeof exec.result === "object") {
+    const r = exec.result as { path?: string; replacements?: number };
+    return { path: r.path, replacements: r.replacements };
+  }
   if (tool === "shell_exec" && exec.result && typeof exec.result === "object") {
     const r = exec.result as { exitCode?: number };
     return { exitCode: r.exitCode };
   }
-  if (tool === "server_start" || tool === "server_restart") return exec.result;
+  if (tool === "server_start" || tool === "server_restart" || tool === "preview_url") return exec.result;
   if (tool === "server_logs" && exec.result && typeof exec.result === "object") {
     const r = exec.result as { lines?: string[]; status?: string };
     return { status: r.status, lineCount: r.lines?.length ?? 0 };
@@ -224,6 +221,13 @@ function summariseResult(tool: string, exec: { ok: boolean; result?: unknown; er
   if (tool === "package_install" && exec.result && typeof exec.result === "object") {
     const r = exec.result as { installed?: string[]; exitCode?: number };
     return { installed: r.installed, exitCode: r.exitCode };
+  }
+  if (tool === "env_read" && exec.result && typeof exec.result === "object") {
+    const r = exec.result as { count?: number; path?: string };
+    return { path: r.path, count: r.count };
+  }
+  if (tool === "env_write" || tool === "git_status" || tool === "git_add" || tool === "git_commit") {
+    return exec.result;
   }
   return { ok: true };
 }
