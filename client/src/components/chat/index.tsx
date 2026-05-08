@@ -7,7 +7,7 @@ import { ChatMessages } from "./ChatMessages";
 import { ChatInput } from "./ChatInput";
 import { fetchFileContent, guessLangFromPath, fetchChatHistory, fetchChatPrompts } from "./tool-helpers";
 import type { ChatPanelProps } from "./types";
-import type { AgentStreamItem } from "@/components/AgentActionFeed";
+import type { AgentStreamItem } from "@/components/agent/AgentActionFeed";
 
 const DEFAULT_PROMPTS = [
   "Check my app for bugs",

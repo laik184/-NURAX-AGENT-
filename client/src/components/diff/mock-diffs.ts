@@ -1,0 +1,180 @@
+import type { FileDiff } from "./FileDiffCard";
+
+export function generateMockDiffs(prompt: string): FileDiff[] {
+  const p = prompt.toLowerCase();
+
+  if (p.includes("button") || p.includes("component") || p.includes("ui") || p.includes("design")) {
+    return [
+      {
+        filename: "client/src/components/Button.tsx",
+        status: "created",
+        additions: 28,
+        deletions: 0,
+        lines: [
+          { type: "hunk", content: "@@ -0,0 +1,28 @@" },
+          { type: "add", content: "import { cn } from '@/lib/utils';", newLineNo: 1 },
+          { type: "add", content: "", newLineNo: 2 },
+          { type: "add", content: "interface ButtonProps {", newLineNo: 3 },
+          { type: "add", content: "  children: React.ReactNode;", newLineNo: 4 },
+          { type: "add", content: "  variant?: 'primary' | 'secondary' | 'ghost';", newLineNo: 5 },
+          { type: "add", content: "  size?: 'sm' | 'md' | 'lg';", newLineNo: 6 },
+          { type: "add", content: "  onClick?: () => void;", newLineNo: 7 },
+          { type: "add", content: "  disabled?: boolean;", newLineNo: 8 },
+          { type: "add", content: "}", newLineNo: 9 },
+          { type: "add", content: "", newLineNo: 10 },
+          { type: "add", content: "export function Button({", newLineNo: 11 },
+          { type: "add", content: "  children, variant = 'primary', size = 'md',", newLineNo: 12 },
+          { type: "add", content: "  onClick, disabled,", newLineNo: 13 },
+          { type: "add", content: "}: ButtonProps) {", newLineNo: 14 },
+          { type: "add", content: "  return (", newLineNo: 15 },
+          { type: "add", content: "    <button", newLineNo: 16 },
+          { type: "add", content: "      onClick={onClick}", newLineNo: 17 },
+          { type: "add", content: "      disabled={disabled}", newLineNo: 18 },
+          { type: "add", content: "      className={cn(", newLineNo: 19 },
+          { type: "add", content: "        'rounded-lg font-medium transition-all',", newLineNo: 20 },
+          { type: "add", content: "        variant === 'primary' && 'bg-primary text-white',", newLineNo: 21 },
+          { type: "add", content: "        size === 'sm' && 'px-3 py-1.5 text-sm',", newLineNo: 22 },
+          { type: "add", content: "        size === 'md' && 'px-4 py-2 text-base',", newLineNo: 23 },
+          { type: "add", content: "      )}", newLineNo: 24 },
+          { type: "add", content: "    >", newLineNo: 25 },
+          { type: "add", content: "      {children}", newLineNo: 26 },
+          { type: "add", content: "    </button>", newLineNo: 27 },
+          { type: "add", content: "  );", newLineNo: 28 },
+          { type: "add", content: "}", newLineNo: 29 },
+        ],
+      },
+      {
+        filename: "client/src/App.tsx",
+        status: "modified",
+        additions: 3,
+        deletions: 1,
+        lines: [
+          { type: "hunk", content: "@@ -1,7 +1,9 @@" },
+          { type: "context", content: "import { Switch, Route } from 'wouter';", oldLineNo: 1, newLineNo: 1 },
+          { type: "remove", content: "import Home from '@/pages/home';", oldLineNo: 2 },
+          { type: "add", content: "import Home from '@/pages/home';", newLineNo: 2 },
+          { type: "add", content: "import { Button } from '@/components/Button';", newLineNo: 3 },
+          { type: "add", content: "import { ButtonDemo } from '@/components/ButtonDemo';", newLineNo: 4 },
+          { type: "context", content: "", oldLineNo: 3, newLineNo: 5 },
+          { type: "context", content: "export default function App() {", oldLineNo: 4, newLineNo: 6 },
+        ],
+      },
+    ];
+  }
+
+  if (p.includes("auth") || p.includes("login") || p.includes("user")) {
+    return [
+      {
+        filename: "client/src/pages/login.tsx",
+        status: "created",
+        additions: 42,
+        deletions: 0,
+        lines: [
+          { type: "hunk", content: "@@ -0,0 +1,42 @@" },
+          { type: "add", content: "import { useState } from 'react';", newLineNo: 1 },
+          { type: "add", content: "import { useLocation } from 'wouter';", newLineNo: 2 },
+          { type: "add", content: "", newLineNo: 3 },
+          { type: "add", content: "export default function LoginPage() {", newLineNo: 4 },
+          { type: "add", content: "  const [email, setEmail] = useState('');", newLineNo: 5 },
+          { type: "add", content: "  const [password, setPassword] = useState('');", newLineNo: 6 },
+          { type: "add", content: "  const [, navigate] = useLocation();", newLineNo: 7 },
+          { type: "add", content: "", newLineNo: 8 },
+          { type: "add", content: "  const handleSubmit = async (e: React.FormEvent) => {", newLineNo: 9 },
+          { type: "add", content: "    e.preventDefault();", newLineNo: 10 },
+          { type: "add", content: "    // auth logic here", newLineNo: 11 },
+          { type: "add", content: "    navigate('/dashboard');", newLineNo: 12 },
+          { type: "add", content: "  };", newLineNo: 13 },
+          { type: "add", content: "", newLineNo: 14 },
+          { type: "add", content: "  return (", newLineNo: 15 },
+          { type: "add", content: "    <div className='min-h-screen flex items-center justify-center'>", newLineNo: 16 },
+          { type: "add", content: "      <form onSubmit={handleSubmit} className='w-full max-w-sm space-y-4'>", newLineNo: 17 },
+          { type: "add", content: "        <h1 className='text-2xl font-bold'>Sign in</h1>", newLineNo: 18 },
+          { type: "add", content: "        <input type='email' value={email}", newLineNo: 19 },
+          { type: "add", content: "          onChange={(e) => setEmail(e.target.value)} />", newLineNo: 20 },
+          { type: "add", content: "        <input type='password' value={password}", newLineNo: 21 },
+          { type: "add", content: "          onChange={(e) => setPassword(e.target.value)} />", newLineNo: 22 },
+          { type: "add", content: "        <button type='submit'>Sign in</button>", newLineNo: 23 },
+          { type: "add", content: "      </form>", newLineNo: 24 },
+          { type: "add", content: "    </div>", newLineNo: 25 },
+          { type: "add", content: "  );", newLineNo: 26 },
+          { type: "add", content: "}", newLineNo: 27 },
+        ],
+      },
+      {
+        filename: "server/routes.ts",
+        status: "modified",
+        additions: 18,
+        deletions: 2,
+        lines: [
+          { type: "hunk", content: "@@ -12,8 +12,24 @@" },
+          { type: "context", content: "import { storage } from './storage';", oldLineNo: 12, newLineNo: 12 },
+          { type: "context", content: "import { z } from 'zod';", oldLineNo: 13, newLineNo: 13 },
+          { type: "remove", content: "// TODO: add auth routes", oldLineNo: 14 },
+          { type: "remove", content: "// TODO: add user routes", oldLineNo: 15 },
+          { type: "add", content: "import bcrypt from 'bcryptjs';", newLineNo: 14 },
+          { type: "add", content: "import jwt from 'jsonwebtoken';", newLineNo: 15 },
+          { type: "add", content: "", newLineNo: 16 },
+          { type: "add", content: "app.post('/api/auth/login', async (req, res) => {", newLineNo: 17 },
+          { type: "add", content: "  const { email, password } = req.body;", newLineNo: 18 },
+          { type: "add", content: "  const user = await storage.getUserByEmail(email);", newLineNo: 19 },
+          { type: "add", content: "  if (!user) return res.status(401).json({ error: 'Invalid credentials' });", newLineNo: 20 },
+          { type: "add", content: "  const valid = await bcrypt.compare(password, user.passwordHash);", newLineNo: 21 },
+          { type: "add", content: "  if (!valid) return res.status(401).json({ error: 'Invalid credentials' });", newLineNo: 22 },
+          { type: "add", content: "  const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET!);", newLineNo: 23 },
+          { type: "add", content: "  res.json({ token });", newLineNo: 24 },
+          { type: "add", content: "});", newLineNo: 25 },
+        ],
+      },
+    ];
+  }
+
+  if (p.includes("database") || p.includes("api") || p.includes("backend") || p.includes("storage")) {
+    return [
+      {
+        filename: "server/storage.ts",
+        status: "modified",
+        additions: 22,
+        deletions: 4,
+        lines: [
+          { type: "hunk", content: "@@ -8,12 +8,30 @@" },
+          { type: "context", content: "export interface IStorage {", oldLineNo: 8, newLineNo: 8 },
+          { type: "remove", content: "  // TODO: add methods", oldLineNo: 9 },
+          { type: "remove", content: "}", oldLineNo: 10 },
+          { type: "add", content: "  getItems(): Promise<Item[]>;", newLineNo: 9 },
+          { type: "add", content: "  getItemById(id: number): Promise<Item | undefined>;", newLineNo: 10 },
+          { type: "add", content: "  createItem(item: InsertItem): Promise<Item>;", newLineNo: 11 },
+          { type: "add", content: "  updateItem(id: number, data: Partial<InsertItem>): Promise<Item>;", newLineNo: 12 },
+          { type: "add", content: "  deleteItem(id: number): Promise<void>;", newLineNo: 13 },
+          { type: "add", content: "}", newLineNo: 14 },
+        ],
+      },
+    ];
+  }
+
+  return [
+    {
+      filename: "client/src/pages/home.tsx",
+      status: "modified",
+      additions: 14,
+      deletions: 6,
+      lines: [
+        { type: "hunk", content: "@@ -5,14 +5,22 @@" },
+        { type: "context", content: "import { useState } from 'react';", oldLineNo: 5, newLineNo: 5 },
+        { type: "context", content: "", oldLineNo: 6, newLineNo: 6 },
+        { type: "remove", content: "export default function Home() {", oldLineNo: 7 },
+        { type: "remove", content: "  return <div>Hello</div>;", oldLineNo: 8 },
+        { type: "remove", content: "}", oldLineNo: 9 },
+        { type: "add", content: "export default function Home() {", newLineNo: 7 },
+        { type: "add", content: "  const [count, setCount] = useState(0);", newLineNo: 8 },
+        { type: "add", content: "", newLineNo: 9 },
+        { type: "add", content: "  return (", newLineNo: 10 },
+        { type: "add", content: "    <main className='flex flex-col items-center gap-6 p-8'>", newLineNo: 11 },
+        { type: "add", content: "      <h1 className='text-3xl font-bold tracking-tight'>Welcome</h1>", newLineNo: 12 },
+        { type: "add", content: "      <button onClick={() => setCount((c) => c + 1)}>Count: {count}</button>", newLineNo: 13 },
+        { type: "add", content: "    </main>", newLineNo: 14 },
+        { type: "add", content: "  );", newLineNo: 15 },
+        { type: "add", content: "}", newLineNo: 16 },
+      ],
+    },
+  ];
+}

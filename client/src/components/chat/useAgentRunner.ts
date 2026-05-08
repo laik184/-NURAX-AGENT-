@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { getAgentMode } from "@/hooks/useAgentMode";
-import type { AgentStreamItem } from "@/components/AgentActionFeed";
+import type { AgentStreamItem } from "@/components/agent/AgentActionFeed";
 import type { ChatMessage } from "./types";
 
 export function useAgentRunner() {

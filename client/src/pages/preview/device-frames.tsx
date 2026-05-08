@@ -1,4 +1,11 @@
 import React from "react";
+import type { DeviceKey } from "./preview-types";
+
+/* ───────────────────────── DEVICE FRAME WRAPPER ───────────────────────────── */
+export function DeviceFrame({ deviceKey, children }: { deviceKey: DeviceKey; children: React.ReactNode }) {
+  if (deviceKey === "oneplus" as DeviceKey) return <OnePlusFrame>{children}</OnePlusFrame>;
+  return <MobileFrame>{children}</MobileFrame>;
+}
 
 /* ───────────────────────────── TABLET 16:9 FRAME ───────────────────────────── */
 export function TabletFrame({ children }: { children: React.ReactNode }) {

@@ -1,5 +1,5 @@
 import { Brain } from "lucide-react";
-import type { AgentStreamItem } from "@/components/AgentActionFeed";
+import type { AgentStreamItem } from "@/components/agent/AgentActionFeed";
 import { TOOL_ICON_MAP, TOOL_COLOR_MAP, TOOL_ANIMATION_MAP, TOOL_EMOJI_MAP } from "./tool-maps";
 
 export const LIVE_ACTION_CSS = `

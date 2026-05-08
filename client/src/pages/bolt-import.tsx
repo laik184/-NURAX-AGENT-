@@ -3,7 +3,7 @@ import { ChevronLeft, Globe, Lock, Download, ExternalLink, Check } from "lucide-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
-import { ImportLoadingOverlay } from "@/components/import-loading-overlay";
+import { ImportLoadingOverlay } from "@/components/import/import-loading-overlay";
 
 export default function BoltImport() {
   const [, setLocation] = useLocation();

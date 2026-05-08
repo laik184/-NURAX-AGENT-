@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, Palette, ImageIcon, Layout, ArrowRight, ExternalLink } from "lucide-react";
 import { SiFigma } from "react-icons/si";
 import { useLocation } from "wouter";
-import { ImportLoadingOverlay } from "@/components/import-loading-overlay";
+import { ImportLoadingOverlay } from "@/components/import/import-loading-overlay";
 
 export default function FigmaImport() {
   const [, setLocation] = useLocation();

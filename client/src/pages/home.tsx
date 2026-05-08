@@ -22,7 +22,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AgentsButton } from "@/components/AgentsHub";
+import { AgentsButton } from "@/components/agent/AgentsHub";
 import type { Project } from "@shared/schema";
 
 const categories = [

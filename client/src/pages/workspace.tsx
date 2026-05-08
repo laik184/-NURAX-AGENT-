@@ -45,13 +45,13 @@ import {
   Zap,
   Link,
 } from "lucide-react";
-import { CenterPanel, type WorkspaceTab } from "@/components/CenterPanel";
+import { CenterPanel, type WorkspaceTab } from "@/components/layout/CenterPanel";
 import { cn } from "@/lib/utils";
-import { AgentsButton } from "@/components/AgentsHub";
-import { AgentMarkdown } from "@/components/AgentMarkdown";
-import { CheckpointCard, type CheckpointData } from "@/components/CheckpointCard";
-import { type AgentStreamItem } from "@/components/AgentActionFeed";
-import { generateMockDiffs, type FileDiff } from "@/components/FileDiffCard";
+import { AgentsButton } from "@/components/agent/AgentsHub";
+import { AgentMarkdown } from "@/components/agent/AgentMarkdown";
+import { CheckpointCard, type CheckpointData } from "@/components/panels/CheckpointCard";
+import { type AgentStreamItem } from "@/components/agent/AgentActionFeed";
+import { generateMockDiffs, type FileDiff } from "@/components/diff/FileDiffCard";
 import { ChatPanel } from "@/components/chat";
 
 function InvitePopup({ onClose }: { onClose: () => void }) {

@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Plus, Paperclip, ImageIcon, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AgentsButton } from "@/components/AgentsHub";
+import { AgentsButton } from "@/components/agent/AgentsHub";
 
 interface ChatInputProps {
   chatInput: string;

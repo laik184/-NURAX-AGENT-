@@ -1,14 +1,14 @@
 import { useRef, useEffect } from "react";
 import { Bot, Sparkles, MessageSquarePlus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AgentMarkdown } from "@/components/AgentMarkdown";
-import { CheckpointCard } from "@/components/CheckpointCard";
-import { FileDiffCard } from "@/components/FileDiffCard";
+import { AgentMarkdown } from "@/components/agent/AgentMarkdown";
+import { CheckpointCard } from "@/components/panels/CheckpointCard";
+import { FileDiffCard } from "@/components/diff/FileDiffCard";
 import { ToolGroupLine } from "./ToolGroupLine";
 import { ThinkingBubble, LiveActionBar } from "./LiveActionBar";
 import { QuestionCard } from "./QuestionCard";
 import type { ChatMessage } from "./types";
-import type { AgentStreamItem } from "@/components/AgentActionFeed";
+import type { AgentStreamItem } from "@/components/agent/AgentActionFeed";
 
 interface ChatMessagesProps {
   messages: ChatMessage[];

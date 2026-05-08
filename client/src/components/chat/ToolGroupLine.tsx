@@ -4,7 +4,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { AgentStreamItem } from "@/components/AgentActionFeed";
+import type { AgentStreamItem } from "@/components/agent/AgentActionFeed";
 import { TOOL_ICON_MAP, TOOL_COLOR_MAP } from "./tool-maps";
 import { invokeToolBackend } from "./tool-helpers";
 

@@ -1,16 +1,16 @@
 import { useState } from "react";
 import { Globe } from "lucide-react";
-import { TABS } from "./publishing/types";
-import { useDeployRunner } from "./publishing/use-deploy-runner";
-import { DeployOverlayPanel } from "./publishing/DeployOverlayPanel";
-import { OverviewTab } from "./publishing/OverviewTab";
-import { LogsTab } from "./publishing/LogsTab";
-import { ResourcesTab } from "./publishing/ResourcesTab";
-import { DomainsTab } from "./publishing/DomainsTab";
-import { ManageTab } from "./publishing/ManageTab";
-import { AppSettingsPanel } from "./publishing/AppSettingsPanel";
-import { SecurityScanPanel } from "./publishing/SecurityScanPanel";
-import { AuthPanel } from "./publishing/AuthPanel";
+import { TABS } from "../publishing/types";
+import { useDeployRunner } from "../publishing/use-deploy-runner";
+import { DeployOverlayPanel } from "../publishing/DeployOverlayPanel";
+import { OverviewTab } from "../publishing/OverviewTab";
+import { LogsTab } from "../publishing/LogsTab";
+import { ResourcesTab } from "../publishing/ResourcesTab";
+import { DomainsTab } from "../publishing/DomainsTab";
+import { ManageTab } from "../publishing/ManageTab";
+import { AppSettingsPanel } from "../publishing/AppSettingsPanel";
+import { SecurityScanPanel } from "../publishing/SecurityScanPanel";
+import { AuthPanel } from "../publishing/AuthPanel";
 
 export { AuthPanel };
 

@@ -1,7 +1,7 @@
 import { X, Copy, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
-import { PortConfigModal } from "@/components/port-config-modal";
+import { PortConfigModal } from "@/components/modals/port-config-modal";
 
 interface Port {
   id: string;

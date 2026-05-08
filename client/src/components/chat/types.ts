@@ -1,6 +1,6 @@
-import type { AgentStreamItem } from "@/components/AgentActionFeed";
-import type { FileDiff } from "@/components/FileDiffCard";
-import type { CheckpointData } from "@/components/CheckpointCard";
+import type { AgentStreamItem } from "@/components/agent/AgentActionFeed";
+import type { FileDiff } from "@/components/diff/FileDiffCard";
+import type { CheckpointData } from "@/components/panels/CheckpointCard";
 
 export interface QuestionData {
   text: string;
