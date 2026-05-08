@@ -3,7 +3,6 @@ import { agentRuns } from "../../../shared/schema.ts";
 import { bus } from "../../infrastructure/events/bus.ts";
 import { executeToolLoopRun } from "./tool-loop.executor.ts";
 import { executePipelineRun } from "./executor.ts";
-import { attachAgentEventPersister } from "./event-persist.ts";
 import { getRun, newRunId, registerRun, requestCancel } from "./registry.ts";
 import type { RunHandle, RunInput } from "./types.ts";
 
@@ -53,5 +52,3 @@ class RunController {
 }
 
 export const runManager = new RunController();
-
-attachAgentEventPersister();
