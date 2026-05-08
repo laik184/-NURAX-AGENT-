@@ -14,7 +14,7 @@ import { createInventoryRouter } from "./inventory.routes.ts";
 import { createLegacyAliasRouter } from "./legacy-aliases.routes.ts";
 import { createCompatRouter } from "./compat.routes.ts";
 import { createRuntimeRouter } from "./runtime.routes.ts";
-import { createChatRouter } from "./chat.routes.ts";
+import { createChatRouter } from "../chat/index.ts";
 import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../core/orchestrator.types.ts";
 
 const SERVICE = "http-routes";

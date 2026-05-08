@@ -14,7 +14,7 @@ import { createArtifactsRouter } from './server/api/artifacts.routes.ts';
 import { createPublishingRouter } from './server/api/publishing.routes.ts';
 import { createFoldersRouter } from './server/api/folders.routes.ts';
 import { createInventoryRouter } from './server/api/inventory.routes.ts';
-import { createChatRouter } from './server/api/chat.routes.ts';
+import { createChatRouter } from './server/chat/index.ts';
 import { createLegacyAliasRouter } from './server/api/legacy-aliases.routes.ts';
 import { createCompatRouter } from './server/api/compat.routes.ts';
 import { createRuntimeRouter } from './server/api/runtime.routes.ts';

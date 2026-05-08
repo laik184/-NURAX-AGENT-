@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { resolveQuestion }           from "../orchestration/question-bus.ts";
-import { createChatHistoryRouter }   from "./chat-history.routes.ts";
-import { createChatPromptsRouter }   from "./chat-prompts.routes.ts";
-import { createChatMessagesRouter }  from "./chat-messages.routes.ts";
-import { createChatFeedbackRouter }  from "./chat-feedback.routes.ts";
-import { createChatUploadRouter }    from "./chat-upload.routes.ts";
-import { createChatStreamRouter }    from "./chat-stream.routes.ts";
+import { resolveQuestion }        from "../orchestration/question-bus.ts";
+import { createChatHistoryRouter } from "./history.routes.ts";
+import { createChatPromptsRouter } from "./prompts.routes.ts";
+import { createChatMessagesRouter } from "./messages.routes.ts";
+import { createChatFeedbackRouter } from "./feedback.routes.ts";
+import { createChatUploadRouter }  from "./upload.routes.ts";
+import { createChatStreamRouter }  from "./stream.routes.ts";
 
 export function createChatRouter(): Router {
   const router = Router();
