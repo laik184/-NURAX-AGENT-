@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import Editor from "@monaco-editor/react";
-import FileExplorer from "./file-explorer";
+import { FileExplorer } from "./file-explorer";
 
 export default function UnifiedGrid() {
   const [selectedFile, setSelectedFile] = useState("");

@@ -13,7 +13,7 @@ import Preview from "@/pages/preview";
 import { DatabasePanel } from "@/components/DatabasePanel";
 import { ConsolePanel } from "@/components/console";
 import { PublishingPanel, AuthPanel } from "@/components/PublishingPanel";
-import { FileTreePanel } from "@/components/FileTreePanel";
+import { FileTreePanel } from "@/components/file-explorer";
 
 /* ─────────────────────────── Types ─────────────────────────────── */
 

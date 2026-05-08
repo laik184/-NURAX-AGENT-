@@ -1,6 +1,5 @@
-
 import { useEffect, useState } from "react";
-import { getFileHistory } from "../services/agent-ultra.service";
+import { getFileHistory } from "../../services/agent-ultra.service";
 
 interface Props {
   projectId: string;
@@ -19,9 +18,7 @@ export default function FileHistoryPanel({ projectId, filePath, onSelectForDiff 
     setLoading(false);
   }
 
-  useEffect(() => {
-    load();
-  }, [projectId, filePath]);
+  useEffect(() => { load(); }, [projectId, filePath]);
 
   function sendToDiff(i: number) {
     if (!onSelectForDiff) return;
@@ -35,7 +32,6 @@ export default function FileHistoryPanel({ projectId, filePath, onSelectForDiff 
     <div style={{ marginTop: 12, padding: 10, border: "1px solid #333", borderRadius: 6 }}>
       <h3>File History</h3>
       {loading && <div>Loading...</div>}
-
       <div style={{ maxHeight: 240, overflow: "auto", fontSize: 12 }}>
         {history.map((h, i) => (
           <div
@@ -43,13 +39,13 @@ export default function FileHistoryPanel({ projectId, filePath, onSelectForDiff 
             style={{
               padding: 6,
               borderBottom: "1px solid #222",
-              cursor: i > 0 ? "pointer" : "default"
+              cursor: i > 0 ? "pointer" : "default",
             }}
             onClick={() => i > 0 && sendToDiff(i)}
           >
             <div><b>Version:</b> {h.id}</div>
-            <div><b>Author:</b> {h.author}</div>
-            <div><b>Time:</b> {new Date(h.createdAt).toLocaleString()}</div>
+            <div><b>Author:</b>  {h.author}</div>
+            <div><b>Time:</b>    {new Date(h.createdAt).toLocaleString()}</div>
             {i > 0 && <div style={{ color: "#0af" }}>Click to diff with previous</div>}
           </div>
         ))}
