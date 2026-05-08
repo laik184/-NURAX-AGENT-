@@ -1,7 +1,8 @@
-/**
- * @deprecated
- * This file is a backward-compatibility re-export.
- * active-project has moved to server/chat/run/active-project.ts
- * All new code should import from there directly.
- */
-export { resolveProjectId, getOrCreateActiveProject } from "../chat/run/active-project.ts";
+import type { Request } from "express";
+import { chatOrchestrator } from "../chat/index.ts";
+export function resolveProjectId(req: Request) {
+  return chatOrchestrator.project.resolveId(req);
+}
+export function getOrCreateActiveProject() {
+  return chatOrchestrator.project.getActive();
+}

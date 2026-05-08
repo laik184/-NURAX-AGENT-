@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
 import http from "node:http";
-import { resolveProjectId } from "../orchestration/active-project.ts";
+import { chatOrchestrator } from "../chat/index.ts";
 import { projectRunner } from "../services/project-runner.service.ts";
 import { packageManager } from "../services/package-manager.service.ts";
 import { gitService } from "../services/git.service.ts";
@@ -14,7 +14,7 @@ export function createRuntimeRouter(): Router {
 
   r.post("/api/run-project", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const { command, args, port } = (req.body || {}) as {
         command?: string;
         args?: string[];
@@ -36,7 +36,7 @@ export function createRuntimeRouter(): Router {
 
   r.post("/api/stop-project", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const meta = await projectRunner.stop(projectId);
       res.json({
         ok: true,
@@ -51,7 +51,7 @@ export function createRuntimeRouter(): Router {
 
   r.post("/api/restart", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const meta = await projectRunner.restart(projectId);
       res.json({
         ok: true,
@@ -68,7 +68,7 @@ export function createRuntimeRouter(): Router {
 
   r.get("/api/project-status", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const meta = projectRunner.get(projectId);
       res.json({
         ok: true,
@@ -84,7 +84,7 @@ export function createRuntimeRouter(): Router {
 
   r.get("/api/tunnel-info", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const info = projectRunner.tunnelInfo(projectId);
       res.json({ ok: true, ...info, projectId, data: { projectId, ...info } });
     } catch (e: any) {
@@ -94,7 +94,7 @@ export function createRuntimeRouter(): Router {
 
   r.get("/api/runtime/logs", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const limit = Math.min(Number(req.query.limit) || 200, 1000);
       const lines = projectRunner.recentLogs(projectId, limit);
       res.json({ ok: true, lines, data: { lines } });
@@ -105,7 +105,7 @@ export function createRuntimeRouter(): Router {
 
   r.get("/api/packages/list", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const data = await packageManager.list(projectId);
       res.json({ ok: true, ...data, data });
     } catch (e: any) {
@@ -115,7 +115,7 @@ export function createRuntimeRouter(): Router {
 
   r.post("/api/packages/install", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const { packages = [], dev = false } = (req.body || {}) as {
         packages?: string[];
         dev?: boolean;
@@ -129,7 +129,7 @@ export function createRuntimeRouter(): Router {
 
   r.post("/api/packages/uninstall", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const { packages = [] } = (req.body || {}) as { packages?: string[] };
       const result = await packageManager.uninstall(projectId, packages);
       res.json({ ok: result.ok, ...result, data: result });
@@ -140,7 +140,7 @@ export function createRuntimeRouter(): Router {
 
   r.post("/api/packages/run", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const { script } = (req.body || {}) as { script?: string };
       if (!script) return res.status(400).json(err("BAD_REQUEST", "script required"));
       const result = await packageManager.run(projectId, script);
@@ -152,7 +152,7 @@ export function createRuntimeRouter(): Router {
 
   r.get("/api/git/status", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const result = await gitService.status(projectId);
       res.json({ ok: result.ok, ...result, data: result });
     } catch (e: any) {
@@ -162,7 +162,7 @@ export function createRuntimeRouter(): Router {
 
   r.get("/api/git/log", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const limit = Math.min(Number(req.query.limit) || 30, 200);
       const result = await gitService.log(projectId, limit);
       res.json({ ok: result.ok, ...result, data: result });
@@ -173,7 +173,7 @@ export function createRuntimeRouter(): Router {
 
   r.get("/api/screenshot", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const meta = projectRunner.get(projectId);
       if (!meta || meta.status !== "running") {
         return res.status(409).json(err("NOT_RUNNING", "project is not running"));

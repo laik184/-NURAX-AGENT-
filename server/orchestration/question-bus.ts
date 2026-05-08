@@ -1,7 +1,10 @@
-/**
- * @deprecated
- * This file is a backward-compatibility re-export.
- * question-bus has moved to server/chat/run/question-bus.ts
- * All new code should import from there directly.
- */
-export { waitForAnswer, resolveQuestion, pendingCount } from "../chat/run/question-bus.ts";
+import { chatOrchestrator } from "../chat/index.ts";
+export function waitForAnswer(runId: string, questionId: string, defaultAnswer: string) {
+  return chatOrchestrator.questions.wait(runId, questionId, defaultAnswer);
+}
+export function resolveQuestion(runId: string, questionId: string, answer: string) {
+  return chatOrchestrator.questions.resolve(runId, questionId, answer);
+}
+export function pendingCount() {
+  return chatOrchestrator.questions.pendingCount();
+}

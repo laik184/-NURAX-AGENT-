@@ -4,8 +4,7 @@ import path from "path";
 import { db } from "../infrastructure/db/index.ts";
 import { diffQueue } from "../../shared/schema.ts";
 import { eq, desc, and } from "drizzle-orm";
-import { resolveProjectId } from "../orchestration/active-project.ts";
-import { orchestrator } from "../orchestration/controller.ts";
+import { chatOrchestrator } from "../chat/index.ts";
 import { llm } from "../llm/openrouter.client.ts";
 import { bus } from "../infrastructure/events/bus.ts";
 import { resolveInSandbox } from "../infrastructure/sandbox/sandbox.util.ts";
@@ -14,7 +13,7 @@ export function createLegacyAliasRouter(): Router {
   const r = Router();
 
   r.get("/api/preview-state", async (req: Request, res: Response) => {
-    const projectId = await resolveProjectId(req);
+    const projectId = await chatOrchestrator.project.resolveId(req);
     res.json({ ok: true, data: { projectId, status: "stopped" } });
   });
 
@@ -73,8 +72,8 @@ export function createLegacyAliasRouter(): Router {
     if (!idea) {
       return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "idea required" } });
     }
-    const projectId = await resolveProjectId(req);
-    const handle = await orchestrator.runGoal({ projectId, goal: idea });
+    const projectId = await chatOrchestrator.project.resolveId(req);
+    const handle = await chatOrchestrator.run.runGoal({ projectId, goal: idea });
     res.json({ ok: true, data: { id: handle.runId, projectId, ...handle } });
   });
 
@@ -98,7 +97,7 @@ export function createLegacyAliasRouter(): Router {
   r.post("/api/agent/run/hard-stop", (req: Request, res: Response) => {
     const { id } = (req.body || {}) as { id?: string };
     if (id) {
-      orchestrator.cancel(id);
+      chatOrchestrator.run.cancel(id);
       ultraStates.set(id, "stopped");
     }
     res.json({ ok: true, data: { id, status: "stopped" } });
@@ -109,21 +108,21 @@ export function createLegacyAliasRouter(): Router {
     if (!idea) {
       return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "idea required" } });
     }
-    const projectId = await resolveProjectId(req);
-    const handle = await orchestrator.runGoal({ projectId, goal: idea });
+    const projectId = await chatOrchestrator.project.resolveId(req);
+    const handle = await chatOrchestrator.run.runGoal({ projectId, goal: idea });
     res.json({ ok: true, data: { id: handle.runId, projectId, ...handle } });
   });
   r.post("/api/run/start", (req, res) => res.json({ ok: true, data: { id: req.body?.id, status: "running" } }));
   r.post("/api/run/pause", (req, res) => res.json({ ok: true, data: { id: req.body?.id, status: "paused" } }));
   r.post("/api/run/resume", (req, res) => res.json({ ok: true, data: { id: req.body?.id, status: "running" } }));
   r.post("/api/run/hard-stop", (req, res) => {
-    if (req.body?.id) orchestrator.cancel(req.body.id);
+    if (req.body?.id) chatOrchestrator.run.cancel(req.body.id);
     res.json({ ok: true, data: { id: req.body?.id, status: "stopped" } });
   });
 
   r.get("/api/file/history", async (req: Request, res: Response) => {
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const filePath = (req.query.filePath as string) || "";
       const rows = await db
         .select()
@@ -152,7 +151,7 @@ export function createLegacyAliasRouter(): Router {
       return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "filePath required" } });
     }
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const rows = await db
         .select()
         .from(diffQueue)
@@ -184,7 +183,7 @@ export function createLegacyAliasRouter(): Router {
       return res.json({ ok: true, data: { conflict: false } });
     }
     try {
-      const projectId = await resolveProjectId(req);
+      const projectId = await chatOrchestrator.project.resolveId(req);
       const rows = await db
         .select()
         .from(diffQueue)

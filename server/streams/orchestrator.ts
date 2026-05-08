@@ -1,10 +1,10 @@
-import { createSseRouter } from "./sse.ts";
-import { attachWebSocketServer } from "./ws-server.ts";
+import { chatOrchestrator } from "../chat/index.ts";
 import { fail, ok, type PlatformServiceInput, type PlatformServiceResult } from "../core/orchestrator.types.ts";
 
 const SERVICE = "streams";
 
-export { createSseRouter, attachWebSocketServer };
+export const createSseRouter     = () => chatOrchestrator.buildSseRouter();
+export const attachWebSocketServer = chatOrchestrator.attachWebSocket.bind(chatOrchestrator);
 
 const SSE_CHANNELS: readonly string[] = Object.freeze([
   "/api/agent/stream",
