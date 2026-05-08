@@ -2,7 +2,8 @@ import { Router, type Request, type Response } from "express";
 import { db } from "../infrastructure/db/index.ts";
 import { agentRuns, agentEvents } from "../../shared/schema.ts";
 import { eq, desc } from "drizzle-orm";
-import { runManager as orchestrator } from "../chat/run/controller.ts";
+import { chatOrchestrator } from "../chat/index.ts";
+const orchestrator = chatOrchestrator.run;
 
 function llmPreflight(): string | null {
   if (!process.env.OPENROUTER_API_KEY) {

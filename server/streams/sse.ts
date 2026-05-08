@@ -1,7 +1,8 @@
 /**
  * @deprecated
  * This file is a backward-compatibility re-export.
- * SSE router has moved to server/chat/streams/sse.ts
- * All new code should import from there directly.
+ * SSE router is controlled by ChatOrchestrator.buildSseRouter().
+ * All new code should use: chatOrchestrator.buildSseRouter()
+ * Direct import kept only for legacy tooling that references this path.
  */
 export { createSseRouter } from "../chat/streams/sse.ts";
