@@ -2,8 +2,8 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
-import { db } from "../infrastructure/db/index.ts";
-import { chatUploads } from "../../shared/schema.ts";
+import { db } from "../../infrastructure/db/index.ts";
+import { chatUploads } from "../../../shared/schema.ts";
 import { eq, and } from "drizzle-orm";
 
 const UPLOAD_DIR = path.resolve("./uploads/chat");
@@ -41,27 +41,19 @@ export function createChatUploadRouter(): Router {
     const projectId = Number(req.body?.projectId) || 0;
     const runId     = req.body?.runId ? String(req.body.runId) : null;
     const files     = req.files as Express.Multer.File[] | undefined;
-
-    if (!projectId) {
-      return res.status(400).json({ ok: false, error: "projectId is required" });
-    }
-    if (!files?.length) {
-      return res.status(400).json({ ok: false, error: "at least one file is required" });
-    }
-
+    if (!projectId) return res.status(400).json({ ok: false, error: "projectId is required" });
+    if (!files?.length) return res.status(400).json({ ok: false, error: "at least one file is required" });
     try {
       const inserted = await db
         .insert(chatUploads)
         .values(files.map((f) => ({
-          projectId,
-          runId,
+          projectId, runId,
           filename:   f.originalname,
           mimeType:   f.mimetype,
           storedPath: f.path,
           sizeBytes:  f.size,
         })))
         .returning();
-
       res.status(201).json({ ok: true, uploads: inserted });
     } catch (e: any) {
       res.status(500).json({ ok: false, error: e?.message ?? String(e) });
@@ -71,21 +63,12 @@ export function createChatUploadRouter(): Router {
   router.get("/uploads", async (req, res) => {
     const projectId = Number(req.query.projectId) || 0;
     const runId     = req.query.runId ? String(req.query.runId) : null;
-
-    if (!projectId) {
-      return res.status(400).json({ ok: false, error: "projectId is required" });
-    }
+    if (!projectId) return res.status(400).json({ ok: false, error: "projectId is required" });
     try {
       const condition = runId
         ? and(eq(chatUploads.projectId, projectId), eq(chatUploads.runId, runId))
         : eq(chatUploads.projectId, projectId);
-
-      const rows = await db
-        .select()
-        .from(chatUploads)
-        .where(condition)
-        .limit(50);
-
+      const rows = await db.select().from(chatUploads).where(condition).limit(50);
       res.json({ ok: true, uploads: rows, count: rows.length });
     } catch (e: any) {
       res.status(500).json({ ok: false, error: e?.message ?? String(e) });

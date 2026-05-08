@@ -1,5 +1,5 @@
 import { Router, type Request, type Response } from "express";
-import { bus } from "../infrastructure/events/bus.ts";
+import { bus } from "../../infrastructure/events/bus.ts";
 
 function setupSse(res: Response): void {
   res.setHeader("Content-Type", "text/event-stream");
@@ -50,23 +50,16 @@ export function createChatStreamRouter(): Router {
     });
 
     const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-
-    req.on("close", () => {
-      clearInterval(heartbeat);
-      offAgent();
-      offLife();
-    });
+    req.on("close", () => { clearInterval(heartbeat); offAgent(); offLife(); });
   });
 
   router.get("/stream/lifecycle", (req: Request, res: Response) => {
     setupSse(res);
     const runIdFilter = req.query.runId ? String(req.query.runId) : null;
-
     const off = bus.on("run.lifecycle", (e) => {
       if (runIdFilter && e.runId !== runIdFilter) return;
       sseWrite(res, "lifecycle", { runId: e.runId, status: e.status, ts: e.ts });
     });
-
     const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
     req.on("close", () => { clearInterval(heartbeat); off(); });
   });

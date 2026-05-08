@@ -1,30 +1,6 @@
-import type { RunHandle } from "./types.ts";
-
-export const runs = new Map<string, RunHandle>();
-export const cancellations = new Set<string>();
-
-export function newRunId(): string {
-  return `run-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-}
-
-export function getRun(runId: string): RunHandle | undefined {
-  return runs.get(runId);
-}
-
-export function registerRun(handle: RunHandle): void {
-  runs.set(handle.runId, handle);
-}
-
-export function requestCancel(runId: string): boolean {
-  if (!runs.has(runId)) return false;
-  cancellations.add(runId);
-  return true;
-}
-
-export function isCancelled(runId: string): boolean {
-  return cancellations.has(runId);
-}
-
-export function clearCancel(runId: string): void {
-  cancellations.delete(runId);
-}
+/**
+ * @deprecated
+ * This file is a backward-compatibility re-export.
+ * runs has moved to server/chat/pipeline/runs.ts
+ */
+export { runs, cancellations, newRunId, getRun, registerRun, requestCancel, isCancelled, clearCancel } from "../chat/pipeline/runs.ts";

@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db } from "../infrastructure/db/index.ts";
-import { projects } from "../../shared/schema.ts";
+import { db } from "../../infrastructure/db/index.ts";
+import { projects } from "../../../shared/schema.ts";
 import { eq } from "drizzle-orm";
 
 const BASE_PROMPTS: readonly string[] = Object.freeze([

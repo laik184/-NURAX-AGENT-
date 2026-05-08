@@ -1,19 +1,6 @@
-export interface RunInput {
-  projectId: number;
-  goal: string;
-  mode?: "lite" | "economy" | "power" | "core" | "agent" | "pipeline";
-  context?: Record<string, unknown>;
-  systemPrompt?: string;
-}
-
-export interface RunHandle {
-  runId: string;
-  projectId: number;
-  status: "running" | "success" | "failed" | "cancelled";
-  startedAt: number;
-}
-
-export interface CodeFile {
-  path: string;
-  content: string;
-}
+/**
+ * @deprecated
+ * This file is a backward-compatibility re-export.
+ * types has moved to server/chat/pipeline/types.ts
+ */
+export type { RunInput, RunHandle, CodeFile } from "../chat/pipeline/types.ts";

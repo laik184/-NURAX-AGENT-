@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db } from "../infrastructure/db/index.ts";
-import { agentRuns, chatMessages } from "../../shared/schema.ts";
+import { db } from "../../infrastructure/db/index.ts";
+import { agentRuns, chatMessages } from "../../../shared/schema.ts";
 import { eq, desc } from "drizzle-orm";
 
 function relativeTime(date: Date | null): string {
@@ -24,12 +24,7 @@ export function createChatHistoryRouter(): Router {
     const projectId = Number(req.query.projectId) || 1;
     try {
       const runs = await db
-        .select({
-          id:        agentRuns.id,
-          goal:      agentRuns.goal,
-          status:    agentRuns.status,
-          startedAt: agentRuns.startedAt,
-        })
+        .select({ id: agentRuns.id, goal: agentRuns.goal, status: agentRuns.status, startedAt: agentRuns.startedAt })
         .from(agentRuns)
         .where(eq(agentRuns.projectId, projectId))
         .orderBy(desc(agentRuns.startedAt))
@@ -51,9 +46,7 @@ export function createChatHistoryRouter(): Router {
 
   router.get("/session/:runId", async (req, res) => {
     const { runId } = req.params;
-    if (!runId) {
-      return res.status(400).json({ ok: false, error: "runId required" });
-    }
+    if (!runId) return res.status(400).json({ ok: false, error: "runId required" });
     try {
       const msgs = await db
         .select()
@@ -61,7 +54,6 @@ export function createChatHistoryRouter(): Router {
         .where(eq(chatMessages.runId, runId))
         .orderBy(chatMessages.createdAt)
         .limit(500);
-
       res.json({ ok: true, messages: msgs, runId });
     } catch (e: any) {
       res.status(500).json({ ok: false, error: e?.message ?? String(e) });

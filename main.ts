@@ -14,14 +14,11 @@ import { createArtifactsRouter } from './server/api/artifacts.routes.ts';
 import { createPublishingRouter } from './server/api/publishing.routes.ts';
 import { createFoldersRouter } from './server/api/folders.routes.ts';
 import { createInventoryRouter } from './server/api/inventory.routes.ts';
-import { createChatRouter } from './server/chat/index.ts';
+import { chatOrchestrator } from './server/chat/index.ts';
 import { createLegacyAliasRouter } from './server/api/legacy-aliases.routes.ts';
 import { createCompatRouter } from './server/api/compat.routes.ts';
 import { createRuntimeRouter } from './server/api/runtime.routes.ts';
 import { createPreviewProxy } from './server/infrastructure/proxy/preview-proxy.ts';
-import { createSseRouter } from './server/streams/sse.ts';
-import { attachWebSocketServer } from './server/streams/ws-server.ts';
-import { startConsoleLogPersister } from './server/infrastructure/events/console-log-persister.ts';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -54,7 +51,7 @@ app.use('/api/artifacts', createArtifactsRouter());
 app.use('/api/publishing', createPublishingRouter());
 app.use('/api/folders', createFoldersRouter());
 app.use('/api/inventory', createInventoryRouter());
-app.use('/api/chat', createChatRouter());
+app.use('/api/chat', chatOrchestrator.buildChatRouter());
 
 // Real runtime endpoints (project run/stop/restart, packages, git, screenshot)
 // Mounted BEFORE legacy aliases so it wins on overlapping paths.
@@ -67,8 +64,8 @@ app.use('/preview', createPreviewProxy());
 app.use(createLegacyAliasRouter());
 app.use(createCompatRouter());
 
-// SSE adapters (mounted at root because paths include their own prefix)
-app.use(createSseRouter());
+// SSE adapters — controlled by chatOrchestrator (mounted at root — paths include prefix)
+app.use(chatOrchestrator.buildSseRouter());
 
 app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
@@ -121,10 +118,10 @@ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
 });
 
 const server = createServer(app);
-attachWebSocketServer(server);
 
-// Start background services
-startConsoleLogPersister();
+// chatOrchestrator controls WebSocket and background services
+chatOrchestrator.attachWebSocket(server);
+chatOrchestrator.startPersistence();
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`[nura-x] API server running on port ${PORT}`);
