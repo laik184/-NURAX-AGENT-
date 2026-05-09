@@ -1,48 +1,34 @@
 import { Router, type Request, type Response } from "express";
-
-interface PreviewState {
-  projectId: number;
-  status: "stopped" | "starting" | "running" | "error";
-  url?: string;
-  startedAt?: number;
-}
-
-const previews = new Map<number, PreviewState>();
+import { getProjectPort } from "../infrastructure/proxy/preview-proxy.ts";
 
 export function createPreviewRouter(): Router {
-  const r = Router();
+  const router = Router();
 
-  r.get("/status", (req: Request, res: Response) => {
-    const projectId = Number(req.query.projectId);
-    if (!Number.isFinite(projectId)) {
-      return res.json({ ok: true, data: { status: "stopped" } });
+  router.get("/url/:projectId", (req: Request, res: Response) => {
+    const projectId = Number(req.params.projectId);
+    const port = getProjectPort(projectId);
+    if (!port) {
+      return res.status(503).json({
+        ok: false,
+        error: "No running server for this project. Start the dev server first.",
+      });
     }
-    const state = previews.get(projectId) || { projectId, status: "stopped" as const };
-    res.json({ ok: true, data: state });
+    const url = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : `http://localhost:${port}`;
+    res.json({ ok: true, url, port, projectId });
   });
 
-  r.post("/start", (req: Request, res: Response) => {
-    const { projectId } = (req.body || {}) as { projectId?: number };
-    if (!projectId) {
-      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "projectId required" } });
-    }
-    previews.set(projectId, {
+  router.get("/status/:projectId", (req: Request, res: Response) => {
+    const projectId = Number(req.params.projectId);
+    const port = getProjectPort(projectId);
+    res.json({
+      ok: true,
       projectId,
-      status: "running",
-      url: `/sandbox/${projectId}`,
-      startedAt: Date.now(),
+      running: !!port,
+      port: port || null,
     });
-    res.json({ ok: true, data: previews.get(projectId) });
   });
 
-  r.post("/stop", (req: Request, res: Response) => {
-    const { projectId } = (req.body || {}) as { projectId?: number };
-    if (!projectId) {
-      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "projectId required" } });
-    }
-    previews.set(projectId, { projectId, status: "stopped" });
-    res.json({ ok: true, data: previews.get(projectId) });
-  });
-
-  return r;
+  return router;
 }

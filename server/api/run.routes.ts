@@ -1,64 +1,45 @@
 import { Router, type Request, type Response } from "express";
-import { db } from "../infrastructure/db/index.ts";
-import { agentRuns, agentEvents } from "../../shared/schema.ts";
-import { eq, desc } from "drizzle-orm";
 import { chatOrchestrator } from "../chat/index.ts";
-const orchestrator = chatOrchestrator.run;
-
-function llmPreflight(): string | null {
-  if (!process.env.OPENROUTER_API_KEY) {
-    return "OPENROUTER_API_KEY is not set. Add it in Replit Secrets to enable agent runs.";
-  }
-  return null;
-}
 
 export function createRunRouter(): Router {
-  const r = Router();
+  const router = Router();
 
-  r.post("/", async (req: Request, res: Response) => {
-    const preflightError = llmPreflight();
-    if (preflightError) {
-      return res.status(503).json({
-        ok: false,
-        error: { code: "LLM_UNAVAILABLE", message: preflightError },
-      });
-    }
-
-    const { projectId, goal, mode, context, systemPrompt } = (req.body || {}) as {
-      projectId?: number;
-      goal?: string;
-      mode?: "lite" | "economy" | "power" | "core";
-      context?: Record<string, unknown>;
-      systemPrompt?: string;
-    };
-    if (!projectId || !goal) {
-      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "projectId and goal required" } });
-    }
+  router.post("/", async (req: Request, res: Response) => {
     try {
-      const handle = await orchestrator.runGoal({ projectId, goal, mode, context, systemPrompt });
-      res.json({ ok: true, data: handle });
+      const { projectId, goal, mode, context, systemPrompt } = req.body;
+      if (!projectId) return res.status(400).json({ ok: false, error: "projectId is required" });
+      if (!goal) return res.status(400).json({ ok: false, error: "goal is required" });
+
+      const handle = await chatOrchestrator.run.runGoal({
+        projectId: Number(projectId),
+        goal: String(goal),
+        mode: mode || "agent",
+        context: context || {},
+        systemPrompt,
+      });
+
+      res.status(202).json({ ok: true, runId: handle.runId, status: handle.status });
     } catch (e: any) {
-      res.status(500).json({ ok: false, error: { code: "RUN_ERROR", message: e.message } });
+      res.status(500).json({ ok: false, error: e.message });
     }
   });
 
-  r.get("/:runId", async (req: Request, res: Response) => {
-    const runId = req.params.runId;
-    const [run] = await db.select().from(agentRuns).where(eq(agentRuns.id, runId));
-    if (!run) return res.status(404).json({ ok: false, error: { code: "NOT_FOUND", message: "run" } });
-    const events = await db
-      .select()
-      .from(agentEvents)
-      .where(eq(agentEvents.runId, runId))
-      .orderBy(desc(agentEvents.ts))
-      .limit(200);
-    res.json({ ok: true, data: { run, events } });
+  router.get("/:runId", (req: Request, res: Response) => {
+    const handle = chatOrchestrator.run.get(req.params.runId);
+    if (!handle) return res.status(404).json({ ok: false, error: "Run not found" });
+    res.json({ ok: true, run: handle });
   });
 
-  r.post("/:runId/cancel", (req: Request, res: Response) => {
-    const ok = orchestrator.cancel(req.params.runId);
-    res.json({ ok, data: { runId: req.params.runId, cancelled: ok } });
+  router.post("/:runId/cancel", (req: Request, res: Response) => {
+    const cancelled = chatOrchestrator.run.cancel(req.params.runId);
+    if (!cancelled) return res.status(404).json({ ok: false, error: "Run not found or already done" });
+    res.json({ ok: true, cancelled: true, runId: req.params.runId });
   });
 
-  return r;
+  router.get("/", (_req: Request, res: Response) => {
+    const allRuns = [...chatOrchestrator.runRegistry.values()];
+    res.json({ ok: true, runs: allRuns });
+  });
+
+  return router;
 }

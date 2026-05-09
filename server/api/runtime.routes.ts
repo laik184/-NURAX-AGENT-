@@ -1,219 +1,183 @@
 import { Router, type Request, type Response } from "express";
-import http from "node:http";
-import { chatOrchestrator } from "../chat/index.ts";
-import { projectRunner } from "../services/project-runner.service.ts";
-import { packageManager } from "../services/package-manager.service.ts";
-import { gitService } from "../services/git.service.ts";
+import { spawn } from "child_process";
+import { getProjectDir, ensureProjectDir } from "../infrastructure/sandbox/sandbox.util.ts";
+import { setProjectPort, getProjectPort } from "../infrastructure/proxy/preview-proxy.ts";
+import { db } from "../infrastructure/db/index.ts";
+import { projects } from "../../shared/schema.ts";
+import { eq } from "drizzle-orm";
 
-function err(code: string, message: string) {
-  return { ok: false as const, error: { code, message } };
+interface ServerState {
+  pid: number;
+  port: number;
+  logs: string[];
+  startedAt: number;
+  kill: () => void;
+}
+
+const runningServers = new Map<number, ServerState>();
+
+function allocatePort(projectId: number): number {
+  return 5000 + (projectId % 1000);
 }
 
 export function createRuntimeRouter(): Router {
-  const r = Router();
+  const router = Router();
 
-  r.post("/api/run-project", async (req: Request, res: Response) => {
+  router.post("/api/runtime/:projectId/start", async (req: Request, res: Response) => {
     try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const { command, args, port } = (req.body || {}) as {
-        command?: string;
-        args?: string[];
-        port?: number;
-      };
-      const meta = await projectRunner.start(projectId, { command, args, port });
-      res.json({
-        ok: true,
-        projectId,
-        status: meta.status,
-        url: `/preview/${projectId}/`,
-        port: meta.port,
-        data: { ...meta, url: `/preview/${projectId}/` },
-      });
-    } catch (e: any) {
-      res.status(500).json(err("RUN_FAILED", e?.message || "run failed"));
-    }
-  });
+      const projectId = Number(req.params.projectId);
+      await ensureProjectDir(projectId);
+      const projectDir = getProjectDir(projectId);
 
-  r.post("/api/stop-project", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const meta = await projectRunner.stop(projectId);
-      res.json({
-        ok: true,
-        projectId,
-        status: meta?.status || "stopped",
-        data: { projectId, status: meta?.status || "stopped" },
-      });
-    } catch (e: any) {
-      res.status(500).json(err("STOP_FAILED", e?.message || "stop failed"));
-    }
-  });
-
-  r.post("/api/restart", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const meta = await projectRunner.restart(projectId);
-      res.json({
-        ok: true,
-        restarted: true,
-        projectId,
-        status: meta.status,
-        port: meta.port,
-        data: { restarted: true, ...meta },
-      });
-    } catch (e: any) {
-      res.status(500).json(err("RESTART_FAILED", e?.message || "restart failed"));
-    }
-  });
-
-  r.get("/api/project-status", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const meta = projectRunner.get(projectId);
-      res.json({
-        ok: true,
-        projectId,
-        status: meta?.status || "stopped",
-        port: meta?.port ?? null,
-        data: meta || { projectId, status: "stopped" },
-      });
-    } catch (e: any) {
-      res.status(500).json(err("STATUS_FAILED", e?.message || "status failed"));
-    }
-  });
-
-  r.get("/api/tunnel-info", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const info = projectRunner.tunnelInfo(projectId);
-      res.json({ ok: true, ...info, projectId, data: { projectId, ...info } });
-    } catch (e: any) {
-      res.status(500).json(err("TUNNEL_FAILED", e?.message || "tunnel failed"));
-    }
-  });
-
-  r.get("/api/runtime/logs", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const limit = Math.min(Number(req.query.limit) || 200, 1000);
-      const lines = projectRunner.recentLogs(projectId, limit);
-      res.json({ ok: true, lines, data: { lines } });
-    } catch (e: any) {
-      res.status(500).json(err("LOGS_FAILED", e?.message || "logs failed"));
-    }
-  });
-
-  r.get("/api/packages/list", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const data = await packageManager.list(projectId);
-      res.json({ ok: true, ...data, data });
-    } catch (e: any) {
-      res.status(500).json(err("LIST_FAILED", e?.message || "list failed"));
-    }
-  });
-
-  r.post("/api/packages/install", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const { packages = [], dev = false } = (req.body || {}) as {
-        packages?: string[];
-        dev?: boolean;
-      };
-      const result = await packageManager.install(projectId, packages, { dev });
-      res.json({ ok: result.ok, ...result, data: result });
-    } catch (e: any) {
-      res.status(500).json(err("INSTALL_FAILED", e?.message || "install failed"));
-    }
-  });
-
-  r.post("/api/packages/uninstall", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const { packages = [] } = (req.body || {}) as { packages?: string[] };
-      const result = await packageManager.uninstall(projectId, packages);
-      res.json({ ok: result.ok, ...result, data: result });
-    } catch (e: any) {
-      res.status(500).json(err("UNINSTALL_FAILED", e?.message || "uninstall failed"));
-    }
-  });
-
-  r.post("/api/packages/run", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const { script } = (req.body || {}) as { script?: string };
-      if (!script) return res.status(400).json(err("BAD_REQUEST", "script required"));
-      const result = await packageManager.run(projectId, script);
-      res.json({ ok: result.ok, ...result, data: result });
-    } catch (e: any) {
-      res.status(500).json(err("RUN_FAILED", e?.message || "run failed"));
-    }
-  });
-
-  r.get("/api/git/status", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const result = await gitService.status(projectId);
-      res.json({ ok: result.ok, ...result, data: result });
-    } catch (e: any) {
-      res.status(500).json(err("STATUS_FAILED", e?.message || "status failed"));
-    }
-  });
-
-  r.get("/api/git/log", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const limit = Math.min(Number(req.query.limit) || 30, 200);
-      const result = await gitService.log(projectId, limit);
-      res.json({ ok: result.ok, ...result, data: result });
-    } catch (e: any) {
-      res.status(500).json(err("LOG_FAILED", e?.message || "log failed"));
-    }
-  });
-
-  r.get("/api/screenshot", async (req: Request, res: Response) => {
-    try {
-      const projectId = await chatOrchestrator.project.resolveId(req);
-      const meta = projectRunner.get(projectId);
-      if (!meta || meta.status !== "running") {
-        return res.status(409).json(err("NOT_RUNNING", "project is not running"));
+      if (runningServers.has(projectId)) {
+        const state = runningServers.get(projectId)!;
+        return res.json({ ok: true, already_running: true, port: state.port, pid: state.pid });
       }
-      const targetPath = (req.query.path as string) || "/";
-      const url = `http://127.0.0.1:${meta.port}${targetPath.startsWith("/") ? targetPath : "/" + targetPath}`;
-      const snap = await new Promise<{ status: number; headers: Record<string, string | string[] | undefined>; body: string }>((resolve, reject) => {
-        const req2 = http.get(url, { timeout: 8000 }, (resp) => {
-          let body = "";
-          resp.on("data", (c) => (body += c.toString("utf-8")));
-          resp.on("end", () =>
-            resolve({ status: resp.statusCode || 0, headers: resp.headers, body }),
-          );
-        });
-        req2.on("error", reject);
-        req2.on("timeout", () => req2.destroy(new Error("request timed out")));
+
+      const port = allocatePort(projectId);
+      const logs: string[] = [];
+
+      const proc = spawn("npm", ["run", "dev"], {
+        cwd: projectDir,
+        env: { ...process.env, PORT: String(port), NODE_ENV: "development" },
+        shell: false,
+        detached: false,
       });
-      const titleMatch = snap.body.match(/<title>([^<]*)<\/title>/i);
-      const textOnly = snap.body
-        .replace(/<script[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[\s\S]*?<\/style>/gi, "")
-        .replace(/<[^>]+>/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-      res.json({
-        ok: true,
-        data: {
-          url,
-          status: snap.status,
-          contentType: snap.headers["content-type"] || null,
-          title: titleMatch?.[1] || null,
-          excerpt: textOnly.slice(0, 800),
-          html: snap.body.slice(0, 4000),
-          bytes: snap.body.length,
-        },
+
+      proc.stdout.on("data", (d: Buffer) => {
+        const line = d.toString().trim();
+        logs.push(line);
+        if (logs.length > 300) logs.shift();
       });
+      proc.stderr.on("data", (d: Buffer) => {
+        const line = d.toString().trim();
+        logs.push(`[stderr] ${line}`);
+        if (logs.length > 300) logs.shift();
+      });
+      proc.on("exit", () => runningServers.delete(projectId));
+
+      runningServers.set(projectId, {
+        pid: proc.pid!,
+        port,
+        logs,
+        startedAt: Date.now(),
+        kill: () => proc.kill("SIGTERM"),
+      });
+      setProjectPort(projectId, port);
+
+      await db.update(projects).set({ status: "running", updatedAt: new Date() }).where(eq(projects.id, projectId));
+
+      await new Promise((r) => setTimeout(r, 1500));
+
+      res.json({ ok: true, started: true, port, pid: proc.pid, projectId });
     } catch (e: any) {
-      res.status(500).json(err("SCREENSHOT_FAILED", e?.message || "screenshot failed"));
+      res.status(500).json({ ok: false, error: e.message });
     }
   });
 
-  return r;
+  router.post("/api/runtime/:projectId/stop", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const state = runningServers.get(projectId);
+      if (!state) return res.json({ ok: true, message: "No running server" });
+      state.kill();
+      runningServers.delete(projectId);
+      await db.update(projects).set({ status: "idle", updatedAt: new Date() }).where(eq(projects.id, projectId));
+      res.json({ ok: true, stopped: true, projectId });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  router.post("/api/runtime/:projectId/restart", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const existing = runningServers.get(projectId);
+      if (existing) { existing.kill(); runningServers.delete(projectId); }
+      await new Promise((r) => setTimeout(r, 500));
+      req.method = "POST";
+      res.redirect(307, `/api/runtime/${projectId}/start`);
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  router.get("/api/runtime/:projectId/logs", (req: Request, res: Response) => {
+    const projectId = Number(req.params.projectId);
+    const state = runningServers.get(projectId);
+    const tail = Number(req.query.tail) || 50;
+    if (!state) return res.json({ ok: true, running: false, logs: [] });
+    res.json({ ok: true, running: true, port: state.port, logs: state.logs.slice(-tail) });
+  });
+
+  router.get("/api/runtime/:projectId/status", (req: Request, res: Response) => {
+    const projectId = Number(req.params.projectId);
+    const state = runningServers.get(projectId);
+    res.json({
+      ok: true,
+      projectId,
+      running: !!state,
+      port: state?.port || null,
+      pid: state?.pid || null,
+      uptimeMs: state ? Date.now() - state.startedAt : null,
+    });
+  });
+
+  router.post("/api/runtime/:projectId/packages/install", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const { packages, dev } = req.body;
+      const projectDir = getProjectDir(projectId);
+      const args = ["install", ...(dev ? ["--save-dev"] : []), ...(packages || [])];
+      const result = await new Promise<{ ok: boolean; stdout: string; stderr: string }>((resolve) => {
+        let stdout = "";
+        let stderr = "";
+        const proc = spawn("npm", args, { cwd: projectDir, shell: false });
+        proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+        proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+        proc.on("close", (code) => resolve({ ok: code === 0, stdout: stdout.slice(-5000), stderr: stderr.slice(-2000) }));
+        proc.on("error", (e) => resolve({ ok: false, stdout: "", stderr: e.message }));
+      });
+      res.json({ ok: result.ok, ...result });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  router.post("/api/runtime/:projectId/git/:action", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const action = req.params.action;
+      const projectDir = getProjectDir(projectId);
+      let gitArgs: string[] = [];
+      if (action === "status") gitArgs = ["status", "--short"];
+      else if (action === "add") gitArgs = ["add", ...(req.body.paths || ["."])];
+      else if (action === "commit") gitArgs = ["-c", "user.email=agent@nura-x.dev", "-c", "user.name=NURA-X", "commit", "-m", req.body.message || "Auto commit"];
+      else return res.status(400).json({ ok: false, error: `Unknown git action: ${action}` });
+
+      const result = await new Promise<{ ok: boolean; stdout: string; stderr: string }>((resolve) => {
+        let stdout = "";
+        let stderr = "";
+        const proc = spawn("git", gitArgs, { cwd: projectDir, shell: false });
+        proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
+        proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
+        proc.on("close", (code) => resolve({ ok: code === 0, stdout, stderr }));
+        proc.on("error", (e) => resolve({ ok: false, stdout: "", stderr: e.message }));
+      });
+      res.json({ ok: result.ok, action, ...result });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  router.get("/api/runtime/:projectId/screenshot", async (req: Request, res: Response) => {
+    const projectId = Number(req.params.projectId);
+    const port = getProjectPort(projectId) || allocatePort(projectId);
+    const url = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : `http://localhost:${port}`;
+    res.json({ ok: true, url, port, message: "Navigate to this URL to see the preview." });
+  });
+
+  return router;
 }

@@ -1,16 +1,23 @@
-import pg from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import pg from "pg";
 import * as schema from "../../../shared/schema.ts";
 
 const { Pool } = pg;
 
-const connectionString = process.env.DATABASE_URL;
-if (!connectionString) {
-  throw new Error("DATABASE_URL is not set — Replit PostgreSQL not provisioned");
+if (!process.env.DATABASE_URL) {
+  console.warn("[nura-x] DATABASE_URL is not set — DB operations will fail.");
 }
 
-export const pool = new Pool({ connectionString });
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: 10,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
+});
+
+pool.on("error", (err) => {
+  console.error("[nura-x] PostgreSQL pool error:", err.message);
+});
 
 export const db = drizzle(pool, { schema });
-
-export { schema };
+export { pool };

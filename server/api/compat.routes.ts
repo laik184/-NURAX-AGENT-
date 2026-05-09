@@ -1,24 +1,23 @@
-import { Router } from "express";
-import { registerLegacyFileRoutes } from "./compat/legacy-files.routes.ts";
-import { registerFilesModalRoutes } from "./compat/files-modal.routes.ts";
-import { registerProjectRoutes } from "./compat/project.routes.ts";
-import { registerGitCompatRoutes } from "./compat/git-compat.routes.ts";
-import { registerWebGenerateRoutes } from "./compat/web-generate.routes.ts";
-import { registerFsHistoryRoutes } from "./compat/fs-history.routes.ts";
-import { registerAgentQueueRoutes } from "./compat/agent-queue.routes.ts";
-import { registerSolopilotRoutes } from "./compat/solopilot.routes.ts";
-import { registerMobileRoutes } from "./compat/mobile.routes.ts";
+import { Router, type Request, type Response } from "express";
 
 export function createCompatRouter(): Router {
-  const r = Router();
-  registerLegacyFileRoutes(r);
-  registerFilesModalRoutes(r);
-  registerProjectRoutes(r);
-  registerGitCompatRoutes(r);
-  registerWebGenerateRoutes(r);
-  registerFsHistoryRoutes(r);
-  registerAgentQueueRoutes(r);
-  registerSolopilotRoutes(r);
-  registerMobileRoutes(r);
-  return r;
+  const router = Router();
+
+  router.get("/api/v1/health", (_req: Request, res: Response) => {
+    res.json({ status: "ok", version: "1.0.0", ts: new Date().toISOString() });
+  });
+
+  router.get("/api/v1/tools", (_req: Request, res: Response) => {
+    res.redirect(301, "/api/inventory/tools");
+  });
+
+  router.get("/api/v1/projects", (_req: Request, res: Response) => {
+    res.redirect(301, "/api/projects");
+  });
+
+  router.post("/api/v1/run", (_req: Request, res: Response) => {
+    res.redirect(307, "/api/run");
+  });
+
+  return router;
 }

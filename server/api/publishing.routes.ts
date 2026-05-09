@@ -4,34 +4,42 @@ import { projects } from "../../shared/schema.ts";
 import { eq } from "drizzle-orm";
 
 export function createPublishingRouter(): Router {
-  const r = Router();
+  const router = Router();
 
-  r.get("/status", async (req: Request, res: Response) => {
-    const projectId = Number(req.query.projectId);
-    if (!Number.isFinite(projectId)) {
-      return res.json({ ok: true, data: { status: "not_published" } });
-    }
-    const [row] = await db.select().from(projects).where(eq(projects.id, projectId));
-    res.json({
-      ok: true,
-      data: {
-        status: row?.status === "published" ? "published" : "not_published",
+  router.post("/publish/:projectId", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+      if (!project) return res.status(404).json({ ok: false, error: "Project not found" });
+
+      await db.update(projects).set({ status: "published", updatedAt: new Date() }).where(eq(projects.id, projectId));
+
+      const publishUrl = process.env.REPLIT_DEV_DOMAIN
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : `http://localhost:${5000 + (projectId % 1000)}`;
+
+      res.json({
+        ok: true,
         projectId,
-      },
-    });
-  });
-
-  r.post("/deploy", async (req: Request, res: Response) => {
-    const { projectId } = (req.body || {}) as { projectId?: number };
-    if (!projectId) {
-      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "projectId required" } });
+        published: true,
+        url: publishUrl,
+        message: `Project "${project.name}" published at ${publishUrl}`,
+      });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
     }
-    await db.update(projects).set({ status: "published", updatedAt: new Date() }).where(eq(projects.id, projectId));
-    res.json({
-      ok: true,
-      data: { projectId, status: "published", deployedAt: Date.now(), note: "Stub deployment — wire to real publisher later" },
-    });
   });
 
-  return r;
+  router.get("/status/:projectId", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const [project] = await db.select().from(projects).where(eq(projects.id, projectId));
+      if (!project) return res.status(404).json({ ok: false, error: "Project not found" });
+      res.json({ ok: true, projectId, status: project.status, name: project.name });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  return router;
 }

@@ -1,28 +1,23 @@
 import { EventEmitter } from "events";
 
-export type AgentEventType =
-  | "phase.started"
-  | "phase.completed"
-  | "phase.failed"
-  | "agent.thinking"
-  | "agent.tool_call"
-  | "agent.message"
-  | "agent.question"
-  | "file.written"
-  | "file.diff"
-  | "diff.queued";
-
 export interface AgentEvent {
   runId: string;
   projectId?: number;
   phase?: string;
   agentName?: string;
-  eventType: AgentEventType;
+  eventType: string;
   payload?: unknown;
   ts: number;
 }
 
-export interface ConsoleEvent {
+export interface RunLifecycleEvent {
+  runId: string;
+  projectId: number;
+  status: "started" | "completed" | "failed" | "cancelled";
+  ts: number;
+}
+
+export interface ConsoleLogEvent {
   projectId: number;
   stream: "stdout" | "stderr";
   line: string;
@@ -31,37 +26,32 @@ export interface ConsoleEvent {
 
 export interface FileChangeEvent {
   projectId: number;
+  type: "add" | "change" | "unlink";
   path: string;
-  kind: "add" | "change" | "unlink";
   ts: number;
 }
 
-export interface RunLifecycleEvent {
-  runId: string;
-  projectId?: number;
-  status: "started" | "completed" | "failed" | "cancelled";
-  ts: number;
-}
+type BusEvents = {
+  "agent.event": (event: AgentEvent) => void;
+  "run.lifecycle": (event: RunLifecycleEvent) => void;
+  "console.log": (event: ConsoleLogEvent) => void;
+  "file.change": (event: FileChangeEvent) => void;
+};
 
-interface BusEventMap {
-  "agent.event": AgentEvent;
-  "console.log": ConsoleEvent;
-  "file.change": FileChangeEvent;
-  "run.lifecycle": RunLifecycleEvent;
-}
-
-class TypedBus {
-  private emitter = new EventEmitter();
-  constructor() {
-    this.emitter.setMaxListeners(0);
+class TypedEventEmitter extends EventEmitter {
+  emit<K extends keyof BusEvents>(event: K, ...args: Parameters<BusEvents[K]>): boolean {
+    return super.emit(event as string, ...args);
   }
-  emit<K extends keyof BusEventMap>(event: K, payload: BusEventMap[K]): void {
-    this.emitter.emit(event, payload);
+  on<K extends keyof BusEvents>(event: K, listener: BusEvents[K]): this {
+    return super.on(event as string, listener as (...args: any[]) => void);
   }
-  on<K extends keyof BusEventMap>(event: K, listener: (payload: BusEventMap[K]) => void): () => void {
-    this.emitter.on(event, listener);
-    return () => this.emitter.off(event, listener);
+  once<K extends keyof BusEvents>(event: K, listener: BusEvents[K]): this {
+    return super.once(event as string, listener as (...args: any[]) => void);
+  }
+  off<K extends keyof BusEvents>(event: K, listener: BusEvents[K]): this {
+    return super.off(event as string, listener as (...args: any[]) => void);
   }
 }
 
-export const bus = new TypedBus();
+export const bus = new TypedEventEmitter();
+bus.setMaxListeners(100);

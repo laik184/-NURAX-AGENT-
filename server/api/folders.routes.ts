@@ -1,44 +1,39 @@
 import { Router, type Request, type Response } from "express";
 
-interface Folder {
-  id: number;
-  name: string;
-  parentId: number | null;
-  createdAt: number;
-}
-
-const folders = new Map<number, Folder>();
+const folders: Array<{ id: number; name: string; projectIds: number[]; createdAt: string }> = [];
 let nextId = 1;
 
 export function createFoldersRouter(): Router {
-  const r = Router();
+  const router = Router();
 
-  r.get("/", (_req: Request, res: Response) => {
-    res.json({ ok: true, data: Array.from(folders.values()) });
+  router.get("/", (_req: Request, res: Response) => {
+    res.json({ ok: true, folders });
   });
 
-  r.post("/", (req: Request, res: Response) => {
-    const { name, parentId } = (req.body || {}) as { name?: string; parentId?: number | null };
-    if (!name) return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "name required" } });
-    const folder: Folder = { id: nextId++, name, parentId: parentId ?? null, createdAt: Date.now() };
-    folders.set(folder.id, folder);
-    res.json({ ok: true, data: folder });
+  router.post("/", (req: Request, res: Response) => {
+    const { name, projectIds } = req.body;
+    if (!name) return res.status(400).json({ ok: false, error: "name is required" });
+    const folder = { id: nextId++, name, projectIds: projectIds || [], createdAt: new Date().toISOString() };
+    folders.push(folder);
+    res.status(201).json({ ok: true, folder });
   });
 
-  r.patch("/:id", (req: Request, res: Response) => {
+  router.patch("/:id", (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    const folder = folders.get(id);
-    if (!folder) return res.status(404).json({ ok: false, error: { code: "NOT_FOUND", message: "folder" } });
-    const { name } = (req.body || {}) as { name?: string };
-    if (name) folder.name = name;
-    res.json({ ok: true, data: folder });
+    const folder = folders.find((f) => f.id === id);
+    if (!folder) return res.status(404).json({ ok: false, error: "Folder not found" });
+    if (req.body.name) folder.name = req.body.name;
+    if (req.body.projectIds) folder.projectIds = req.body.projectIds;
+    res.json({ ok: true, folder });
   });
 
-  r.delete("/:id", (req: Request, res: Response) => {
+  router.delete("/:id", (req: Request, res: Response) => {
     const id = Number(req.params.id);
-    const ok = folders.delete(id);
-    res.json({ ok, data: { id } });
+    const idx = folders.findIndex((f) => f.id === id);
+    if (idx === -1) return res.status(404).json({ ok: false, error: "Folder not found" });
+    folders.splice(idx, 1);
+    res.json({ ok: true, deleted: true });
   });
 
-  return r;
+  return router;
 }

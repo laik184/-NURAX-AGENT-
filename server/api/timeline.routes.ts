@@ -1,42 +1,51 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "../infrastructure/db/index.ts";
-import { agentRuns, agentEvents, chatMessages } from "../../shared/schema.ts";
-import { eq, desc } from "drizzle-orm";
+import { agentRuns, agentEvents } from "../../shared/schema.ts";
+import { eq, desc, gte } from "drizzle-orm";
 
 export function createTimelineRouter(): Router {
-  const r = Router();
+  const router = Router();
 
-  r.get("/", async (req: Request, res: Response) => {
-    const projectId = Number(req.query.projectId);
-    if (!Number.isFinite(projectId)) {
-      return res.status(400).json({ ok: false, error: { code: "BAD_REQUEST", message: "projectId required" } });
+  router.get("/:projectId", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const limit = Number(req.query.limit) || 20;
+      const since = req.query.since ? new Date(req.query.since as string) : undefined;
+
+      let query = db
+        .select()
+        .from(agentRuns)
+        .where(eq(agentRuns.projectId, projectId))
+        .orderBy(desc(agentRuns.startedAt))
+        .$dynamic();
+
+      if (since) {
+        query = query.where(gte(agentRuns.startedAt, since));
+      }
+
+      const runs = await query.limit(limit);
+      res.json({ ok: true, projectId, timeline: runs });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
     }
-    const runs = await db
-      .select()
-      .from(agentRuns)
-      .where(eq(agentRuns.projectId, projectId))
-      .orderBy(desc(agentRuns.startedAt))
-      .limit(50);
-
-    const messages = await db
-      .select()
-      .from(chatMessages)
-      .where(eq(chatMessages.projectId, projectId))
-      .orderBy(desc(chatMessages.createdAt))
-      .limit(100);
-
-    const recentRunIds = runs.slice(0, 10).map((r) => r.id);
-    const events = recentRunIds.length
-      ? await db
-          .select()
-          .from(agentEvents)
-          .where(eq(agentEvents.runId, recentRunIds[0]))
-          .orderBy(desc(agentEvents.ts))
-          .limit(200)
-      : [];
-
-    res.json({ ok: true, data: { runs, messages, events } });
   });
 
-  return r;
+  router.get("/:projectId/events", async (req: Request, res: Response) => {
+    try {
+      const projectId = Number(req.params.projectId);
+      const runId = req.query.runId as string;
+      if (!runId) return res.status(400).json({ ok: false, error: "runId query param required" });
+      const events = await db
+        .select()
+        .from(agentEvents)
+        .where(eq(agentEvents.runId, runId))
+        .orderBy(agentEvents.ts)
+        .limit(500);
+      res.json({ ok: true, projectId, runId, events });
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e.message });
+    }
+  });
+
+  return router;
 }
