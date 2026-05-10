@@ -419,7 +419,7 @@ const devops: OrchestratorEntry[] = [
     async () => { const m = await import('../../../devops/env-pipeline-validator/orchestrator.ts'); return (i: any) => m.validateEnv(i); }),
 ];
 
-// ─── INFRASTRUCTURE (3) ───────────────────────────────────────────────────────
+// ─── INFRASTRUCTURE (4) ───────────────────────────────────────────────────────
 const infrastructure: OrchestratorEntry[] = [
   wrap('infra:deploy', 'infrastructure', ['deploy', 'deployment', 'release', 'ship'],
     'Full deployment orchestration',
@@ -432,6 +432,11 @@ const infrastructure: OrchestratorEntry[] = [
   wrap('infra:git', 'infrastructure', ['git', 'version-control', 'commit', 'branch', 'merge'],
     'Git operations',
     async () => { const m = await import('../../../infrastructure/git/orchestrator.ts'); return (i: any) => m.runGitAction(i?.action ?? i, i); }),
+
+  wrap('tools:orchestrator', 'infrastructure',
+    ['tool-execute', 'run-tool', 'agent-tool', 'tool-call', 'tool-list', 'tool-stats', 'tool-metrics', 'tool-registry'],
+    'Centralized ToolOrchestrator — executes, lists, and reports metrics for all 38 agent tools',
+    async () => { const m = await import('../../../../tools/orchestrator.ts'); return (i: any) => m.runToolsOperation(i); }),
 ];
 
 // ─── CORE-SUPPORT — LLM (5) ───────────────────────────────────────────────────

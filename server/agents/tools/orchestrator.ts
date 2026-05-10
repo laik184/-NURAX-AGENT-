@@ -469,3 +469,59 @@ export const TERMINAL_TOOL_NAMES = new Set<string>(
 );
 
 export type { ToolContext };
+
+// ── Pipeline integration: runToolsOperation ──────────────────────────────────
+// Called by the pipeline registry entry 'tools:orchestrator' (infrastructure
+// domain). Provides a unified operation interface for the dispatch system.
+
+export type ToolsOpKind = "execute" | "executeMany" | "list" | "list-category" | "stats" | "get";
+
+export interface ToolsOperationInput {
+  op?: ToolsOpKind;
+  tool?: string;
+  args?: Record<string, unknown>;
+  ctx?: { projectId: number; runId: string; signal?: AbortSignal };
+  calls?: Array<{ name: string; args: Record<string, unknown> }>;
+  category?: string;
+}
+
+export async function runToolsOperation(input: unknown): Promise<unknown> {
+  const inp = (input ?? {}) as ToolsOperationInput;
+  const op: ToolsOpKind = inp.op ?? "stats";
+
+  switch (op) {
+
+    case "execute": {
+      if (!inp.tool) throw new Error("[tools:orchestrator] execute — missing field: tool");
+      if (!inp.ctx)  throw new Error("[tools:orchestrator] execute — missing field: ctx");
+      return toolOrchestrator.execute(
+        inp.tool,
+        inp.args ?? {},
+        inp.ctx as ToolContext,
+      );
+    }
+
+    case "executeMany": {
+      if (!inp.ctx)   throw new Error("[tools:orchestrator] executeMany — missing field: ctx");
+      if (!inp.calls) throw new Error("[tools:orchestrator] executeMany — missing field: calls");
+      return toolOrchestrator.executeMany(inp.calls, inp.ctx as ToolContext);
+    }
+
+    case "list":
+      return toolOrchestrator.list();
+
+    case "list-category": {
+      if (!inp.category) throw new Error("[tools:orchestrator] list-category — missing field: category");
+      return toolOrchestrator.getByCategory(inp.category as ToolCategory);
+    }
+
+    case "get": {
+      if (!inp.tool) throw new Error("[tools:orchestrator] get — missing field: tool");
+      return toolOrchestrator.getEntry(inp.tool) ?? null;
+    }
+
+    case "stats":
+    default:
+      return toolOrchestrator.getStats();
+  }
+}
