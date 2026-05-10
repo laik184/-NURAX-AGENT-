@@ -31,7 +31,7 @@ export function createChatStreamRouter(): Router {
     setupSse(res);
     const runIdFilter = req.query.runId ? String(req.query.runId) : null;
 
-    const offAgent = bus.on("agent.event", async (e) => {
+    const offAgent = bus.subscribe("agent.event", async (e) => {
       if (runIdFilter && e.runId !== runIdFilter) return;
       if (e.eventType !== "agent.message") return;
       const text =
@@ -41,7 +41,7 @@ export function createChatStreamRouter(): Router {
       if (text) await emitAsTokens(res, text, e.runId);
     });
 
-    const offLife = bus.on("run.lifecycle", (e) => {
+    const offLife = bus.subscribe("run.lifecycle", (e) => {
       if (runIdFilter && e.runId !== runIdFilter) return;
       sseWrite(res, "lifecycle", { runId: e.runId, status: e.status });
       if (["completed", "failed", "cancelled"].includes(e.status)) {
@@ -56,7 +56,7 @@ export function createChatStreamRouter(): Router {
   router.get("/stream/lifecycle", (req: Request, res: Response) => {
     setupSse(res);
     const runIdFilter = req.query.runId ? String(req.query.runId) : null;
-    const off = bus.on("run.lifecycle", (e) => {
+    const off = bus.subscribe("run.lifecycle", (e) => {
       if (runIdFilter && e.runId !== runIdFilter) return;
       sseWrite(res, "lifecycle", { runId: e.runId, status: e.status, ts: e.ts });
     });

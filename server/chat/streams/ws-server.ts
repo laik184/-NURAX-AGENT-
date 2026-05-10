@@ -110,7 +110,7 @@ function handleExecute(ws: WebSocket, sessionId: string): void {
     return;
   }
   for (const line of session.output) safeSend(ws, { type: "stdout", data: line });
-  const off = bus.on("console.log", (e) => {
+  const off = bus.subscribe("console.log", (e) => {
     if (e.projectId !== session.projectId) return;
     safeSend(ws, { type: e.stream, data: e.line });
   });
@@ -118,11 +118,11 @@ function handleExecute(ws: WebSocket, sessionId: string): void {
 }
 
 function handleAgent(ws: WebSocket, runId: string): void {
-  const off = bus.on("agent.event", (e) => {
+  const off = bus.subscribe("agent.event", (e) => {
     if (e.runId !== runId) return;
     safeSend(ws, { type: "agent", data: e });
   });
-  const offLife = bus.on("run.lifecycle", (e) => {
+  const offLife = bus.subscribe("run.lifecycle", (e) => {
     if (e.runId !== runId) return;
     safeSend(ws, { type: "lifecycle", data: e });
   });

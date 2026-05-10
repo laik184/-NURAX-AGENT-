@@ -51,6 +51,14 @@ class TypedEventEmitter extends EventEmitter {
   off<K extends keyof BusEvents>(event: K, listener: BusEvents[K]): this {
     return super.off(event as string, listener as (...args: any[]) => void);
   }
+  /**
+   * Subscribe to an event and return an unsubscribe function.
+   * This allows the SSE / WS handlers to do: const off = bus.on(...); off();
+   */
+  subscribe<K extends keyof BusEvents>(event: K, listener: BusEvents[K]): () => void {
+    super.on(event as string, listener as (...args: any[]) => void);
+    return () => super.off(event as string, listener as (...args: any[]) => void);
+  }
 }
 
 export const bus = new TypedEventEmitter();
