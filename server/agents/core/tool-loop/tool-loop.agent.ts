@@ -10,7 +10,7 @@
  */
 
 import { llm, type ToolMessage } from "../../../llm/openrouter.client.ts";
-import { TOOLS, TOOL_DEFS, getTool, TERMINAL_TOOL_NAMES, type ToolContext } from "../../../tools/registry.ts";
+import { TOOLS, TOOL_DEFS, TERMINAL_TOOL_NAMES, type ToolContext, toolOrchestrator } from "../../../tools/orchestrator.ts";
 import { bus } from "../../../infrastructure/events/bus.ts";
 import { buildSystemPrompt } from "../llm/prompt-builder/agents/system-prompt.agent.js";
 import { TOOL_REFERENCE } from "./tool-reference.ts";
@@ -101,32 +101,16 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResu
         continue;
       }
 
-      if (!tool) {
+      if (!toolOrchestrator.has(call.name)) {
         const err = `Unknown tool: ${call.name}`;
         emit(input.runId, "agent.tool_call", "tool-loop", { tool: call.name, status: "error", error: err });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: false, error: err }) });
         continue;
       }
 
-      emit(input.runId, "agent.tool_call", "tool-loop", {
-        tool: call.name,
-        status: "running",
-        args: summariseArgs(call.name, parsedArgs),
-      });
-
-      let exec;
-      try {
-        exec = await tool.run(parsedArgs, ctx);
-      } catch (e: any) {
-        exec = { ok: false, error: e?.message || String(e) };
-      }
-
-      emit(input.runId, "agent.tool_call", "tool-loop", {
-        tool: call.name,
-        status: exec.ok ? "done" : "error",
-        result: summariseResult(call.name, exec),
-        error: exec.error,
-      });
+      // Delegate full execution lifecycle to ToolOrchestrator:
+      // validation → timeout → event emission → metrics → result
+      const exec = await toolOrchestrator.execute(call.name, parsedArgs, ctx);
 
       const resultJson = JSON.stringify(exec);
       const trimmed = resultJson.length > 10_000
@@ -194,3 +178,6 @@ function summariseResult(tool: string, exec: { ok: boolean; result?: unknown; er
 }
 
 export const TOOL_NAMES = TOOLS.map((t) => t.name);
+
+// Re-export orchestrator for consumers that need direct access
+export { toolOrchestrator };
