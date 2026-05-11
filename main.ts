@@ -19,6 +19,7 @@ import { createLegacyAliasRouter } from './server/api/legacy-aliases.routes.ts';
 import { createCompatRouter } from './server/api/compat.routes.ts';
 import { createRuntimeRouter } from './server/api/runtime.routes.ts';
 import { createPreviewProxy } from './server/infrastructure/proxy/preview-proxy.ts';
+import previewPipeline from './server/preview/index.ts';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -56,6 +57,9 @@ app.use('/api/chat', chatOrchestrator.buildChatRouter());
 // Real runtime endpoints (project run/stop/restart, packages, git, screenshot)
 // Mounted BEFORE legacy aliases so it wins on overlapping paths.
 app.use(createRuntimeRouter());
+
+// IQ2000 Preview Pipeline — runtime/files/tunnel/devtools/state modules
+app.use('/api', previewPipeline);
 
 // Preview proxy: /preview/:projectId/* → child process port
 app.use('/preview', createPreviewProxy());
