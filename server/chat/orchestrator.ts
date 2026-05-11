@@ -12,22 +12,30 @@
  *   ├── events/      → startPersistence()
  *   ├── run/
  *   │   ├── controller.ts     → .run (RunController)
- *   │   ├── registry.ts       → .run.get(), .run.cancel()
+ *   │   ├── registry.ts       → .runRegistry
  *   │   ├── active-project.ts → .project.resolveId(), .project.getActive()
- *   │   ├── question-bus.ts   → .questions.wait(), .questions.resolve(), .questions.pendingCount()
+ *   │   ├── question-bus.ts   → .questions.wait(), .questions.resolve()
  *   │   ├── event-persist.ts  → started inside startPersistence()
  *   │   └── types.ts          → re-exported from index.ts
  *   └── index.ts     → public surface
  *
- * Generator agents are accessed via chatOrchestrator.generators which delegates
- * to server/agents/generator-orchestrator.ts (its proper home).
+ * Pipeline connection:
+ *   server/agents/core/pipeline/  →  .pipeline.*
+ *     .pipeline.execute()         → executePipeline() — 9-phase full run
+ *     .pipeline.dispatch()        → dispatch() — capability-based worker dispatch
+ *     .pipeline.dispatchById()    → dispatchById() — dispatch by orchestrator ID
+ *     .pipeline.getMetrics()      → pipeline run metrics (success/fail/avg ms)
+ *     .pipeline.registry.*        → findByCapability / findById / findByDomain / getStats
+ *
+ * Generator agents:
+ *   server/agents/generator-orchestrator.ts  →  .generators.*
  */
 
 import { Router } from "express";
 import type { Server as HttpServer } from "http";
 import type { Request, Response } from "express";
 
-// ── Routes ──────────────────────────────────────────────────────────────────
+// ── Routes ────────────────────────────────────────────────────────────────────
 import { createChatHistoryRouter }  from "./routes/history.routes.ts";
 import { createChatPromptsRouter }  from "./routes/prompts.routes.ts";
 import { createChatMessagesRouter } from "./routes/messages.routes.ts";
@@ -35,11 +43,11 @@ import { createChatFeedbackRouter } from "./routes/feedback.routes.ts";
 import { createChatUploadRouter }   from "./routes/upload.routes.ts";
 import { createChatStreamRouter }   from "./routes/stream.routes.ts";
 
-// ── Streams ──────────────────────────────────────────────────────────────────
+// ── Streams ───────────────────────────────────────────────────────────────────
 import { createSseRouter }          from "./streams/sse.ts";
 import { attachWebSocketServer }    from "./streams/ws-server.ts";
 
-// ── Events ───────────────────────────────────────────────────────────────────
+// ── Events ────────────────────────────────────────────────────────────────────
 import { startConsoleLogPersister } from "./events/console-log-persister.ts";
 import { attachAgentEventPersister } from "./run/event-persist.ts";
 
@@ -48,6 +56,19 @@ import { runManager }               from "./run/controller.ts";
 import { resolveProjectId, getOrCreateActiveProject } from "./run/active-project.ts";
 import { waitForAnswer, resolveQuestion, pendingCount } from "./run/question-bus.ts";
 import { runs }                     from "./run/registry.ts";
+
+// ── Pipeline ──────────────────────────────────────────────────────────────────
+import { executePipeline, getMetrics as getPipelineMetrics } from "../agents/core/pipeline/index.ts";
+import { dispatch, dispatchById, getRegistryStats }          from "../agents/core/pipeline/registry/dispatcher.ts";
+import {
+  findByCapability,
+  findById,
+  findByDomain,
+  ORCHESTRATOR_REGISTRY,
+} from "../agents/core/pipeline/registry/orchestrator.registry.ts";
+import type { PipelineInput, PipelineOutput, PipelineMetrics } from "../agents/core/pipeline/types.ts";
+import type { DispatchRequest, DispatchSummary }               from "../agents/core/pipeline/registry/dispatcher.ts";
+import type { OrchestratorEntry, OrchestratorDomain }         from "../agents/core/pipeline/registry/orchestrator.registry.ts";
 
 // ── Generator Orchestrator (lives in server/agents/) ─────────────────────────
 import { generatorOrchestrator }    from "../agents/generator-orchestrator.ts";
@@ -78,6 +99,68 @@ class ChatOrchestrator {
       resolveQuestion(runId, questionId, answer),
     pendingCount: () => pendingCount(),
   };
+
+  // ── Pipeline ─────────────────────────────────────────────────────────────────
+  /**
+   * Full pipeline access — connects chatOrchestrator to the 9-phase agent pipeline.
+   *
+   * Flow when using .pipeline.execute():
+   *   Safety → Routing → Decision → Planning → Validation
+   *   → Generation (dispatches to registry workers) → Execution
+   *   → Recovery (if needed) → Feedback → Memory → Complete
+   *
+   * Flow when using .run.runGoal({ mode: "pipeline" }):
+   *   Same pipeline, but with DB persistence + SSE/WS streaming via run system.
+   */
+  readonly pipeline = {
+    /**
+     * Execute the full 9-phase pipeline directly.
+     * For DB-persisted, SSE-streamed runs use:
+     *   chatOrchestrator.run.runGoal({ goal, projectId, mode: "pipeline" })
+     */
+    execute: (input: PipelineInput): Promise<PipelineOutput> =>
+      executePipeline(input),
+
+    /** Get cumulative pipeline run metrics (total, success, failure, avg duration). */
+    getMetrics: (): PipelineMetrics =>
+      getPipelineMetrics(),
+
+    /**
+     * Dispatch to worker orchestrators in the registry by capability keywords.
+     * Only 'generation', 'intelligence', 'security', 'observability',
+     * 'devops', 'infrastructure', 'data', 'realtime' domains are allowed.
+     */
+    dispatch: (req: DispatchRequest): Promise<DispatchSummary> =>
+      dispatch(req),
+
+    /**
+     * Dispatch to specific worker orchestrators by their registry ID.
+     * Example: dispatchById(['backend-gen:auth', 'frontend-gen:component'], input)
+     */
+    dispatchById: (ids: readonly string[], input: unknown): Promise<DispatchSummary> =>
+      dispatchById(ids, input),
+
+    /** Orchestrator registry queries — inspect registered workers. */
+    registry: {
+      /** All registered orchestrator entries. */
+      all: ORCHESTRATOR_REGISTRY as readonly OrchestratorEntry[],
+
+      /** Get a count summary by domain. */
+      getStats: () => getRegistryStats(),
+
+      /** Find worker orchestrators matching a capability keyword. */
+      findByCapability: (capability: string): readonly OrchestratorEntry[] =>
+        findByCapability(capability),
+
+      /** Find a single orchestrator entry by its registry ID. */
+      findById: (id: string): OrchestratorEntry | undefined =>
+        findById(id),
+
+      /** Find all orchestrator entries in a given domain. */
+      findByDomain: (domain: OrchestratorDomain): readonly OrchestratorEntry[] =>
+        findByDomain(domain),
+    },
+  } as const;
 
   // ── Generator Orchestrator ──────────────────────────────────────────────────
   /**
