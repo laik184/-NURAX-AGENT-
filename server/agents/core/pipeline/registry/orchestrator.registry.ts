@@ -419,7 +419,7 @@ const devops: OrchestratorEntry[] = [
     async () => { const m = await import('../../../devops/env-pipeline-validator/orchestrator.ts'); return (i: any) => m.validateEnv(i); }),
 ];
 
-// ─── INFRASTRUCTURE (4) ───────────────────────────────────────────────────────
+// ─── INFRASTRUCTURE (5) ───────────────────────────────────────────────────────
 const infrastructure: OrchestratorEntry[] = [
   wrap('infra:deploy', 'infrastructure', ['deploy', 'deployment', 'release', 'ship'],
     'Full deployment orchestration',
@@ -437,6 +437,26 @@ const infrastructure: OrchestratorEntry[] = [
     ['tool-execute', 'run-tool', 'agent-tool', 'tool-call', 'tool-list', 'tool-stats', 'tool-metrics', 'tool-registry'],
     'Centralized ToolOrchestrator — executes, lists, and reports metrics for all 38 agent tools',
     async () => { const m = await import('../../../../tools/orchestrator.ts'); return (i: any) => m.runToolsOperation(i); }),
+
+  // ── Chat Agent Runner ────────────────────────────────────────────────────────
+  // Starts a sandboxed tool-loop agent run via the chat run manager.
+  // RULE: mode is always 'agent' (tool-loop) here — NEVER 'pipeline'.
+  //       Dispatching with mode:'pipeline' would call executePipeline() from
+  //       inside Phase 6, triggering the recursion guard and crashing the run.
+  wrap('chat:agent-runner', 'infrastructure',
+    ['run-agent', 'agent-run', 'start-run', 'execute-agent', 'goal-run', 'agent-goal'],
+    'Starts a sandboxed tool-loop agent run (mode=agent) via the ChatOrchestrator run manager. ' +
+    'Accepts { goal: string, projectId: number, context?: Record<string,unknown> }. ' +
+    'Returns RunHandle { runId, projectId, status, startedAt }.',
+    async () => {
+      const { runManager } = await import('../../../../chat/run/controller.ts');
+      return (i: any) => runManager.runGoal({
+        goal:      i?.goal ?? String(i),
+        projectId: i?.projectId ?? 0,
+        mode:      'agent',   // tool-loop ONLY — never pipeline (prevents recursion)
+        context:   i?.context,
+      });
+    }),
 ];
 
 // ─── CORE-SUPPORT — LLM (5) ───────────────────────────────────────────────────
@@ -635,6 +655,30 @@ const platformServices: OrchestratorEntry[] = [
   wrap('platform:tools', 'platform-services', ['tool-registry', 'agent-tools', 'tool-defs'],
     'LLM-callable tool registry (file ops, shell, server lifecycle, packages, agent control)',
     async () => { const m = await import('../../../../tools/orchestrator.ts'); return (i: any) => m.runToolsOperation(i); }),
+
+  // ── Chat Orchestrator (platform introspection — NOT for dispatch) ────────────
+  // The ChatOrchestrator is an orchestration-layer platform service:
+  //   - manages Express chat routes (history, prompts, messages, feedback, upload, stream)
+  //   - owns SSE channels + WebSocket server attachment
+  //   - manages agent run lifecycle (start, cancel, registry)
+  //   - owns the question bus (wait/resolve between agent and user)
+  //   - exposes the full 9-phase pipeline (executePipeline) and generator orchestrator
+  // It MUST NOT be dispatched as a worker — included here for diagnostics/introspection only.
+  wrap('platform:chat-orchestrator', 'platform-services',
+    ['chat-orchestrator', 'chat-platform', 'run-manager', 'question-bus', 'chat-routes',
+     'sse-manager', 'websocket-manager', 'pipeline-gateway', 'agent-lifecycle'],
+    'ChatOrchestrator — platform gateway for chat routes, SSE, WebSocket, run lifecycle, ' +
+    'question bus, pipeline execution access, and generator orchestrator. ' +
+    'Introspection only — dispatching this entry is FORBIDDEN.',
+    async () => {
+      const { chatOrchestrator } = await import('../../../../chat/orchestrator.ts');
+      return (_i: any) => ({
+        pipelineMetrics:   chatOrchestrator.pipeline.getMetrics(),
+        registryStats:     chatOrchestrator.pipeline.registry.getStats(),
+        activeRuns:        chatOrchestrator.runRegistry.size,
+        pendingQuestions:  chatOrchestrator.questions.pendingCount(),
+      });
+    }),
 ];
 
 // ─── WORKER DISPATCH REGISTRY ────────────────────────────────────────────────
@@ -684,13 +728,16 @@ export const PLATFORM_SERVICES_REGISTRY: readonly OrchestratorEntry[] = Object.f
 // Any ID in this set must never appear in ORCHESTRATOR_REGISTRY.
 // Used by assertRegistryIntegrity() and the dispatcher guard.
 export const FORBIDDEN_DISPATCH_IDS: ReadonlySet<string> = new Set([
-  // Phase orchestrators
+  // Phase orchestrators (called directly by executePipeline — re-dispatching corrupts state)
   'core:router', 'intel:decision-engine', 'intel:planner-boss',
   'intel:validation-engine', 'core:recovery', 'intel:feedback-loop', 'core:memory',
-  // Platform services
+  // Platform services (orchestration-layer infrastructure — forbidden as workers)
   'platform:persistence', 'platform:event-bus', 'platform:llm-client',
   'platform:preview-proxy', 'platform:http-routes', 'platform:sandbox',
   'platform:runtime-services', 'platform:streams', 'platform:tools',
+  // Chat orchestrator (platform-services level — contains pipeline, routes, SSE, WS)
+  // Dispatching this would create a circular dependency: pipeline → chat → pipeline
+  'platform:chat-orchestrator',
 ]);
 
 // ─── FORBIDDEN DISPATCH DOMAINS ──────────────────────────────────────────────
