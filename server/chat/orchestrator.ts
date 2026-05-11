@@ -16,10 +16,11 @@
  *   │   ├── active-project.ts → .project.resolveId(), .project.getActive()
  *   │   ├── question-bus.ts   → .questions.wait(), .questions.resolve(), .questions.pendingCount()
  *   │   ├── event-persist.ts  → started inside startPersistence()
- *   │   ├── types.ts          → re-exported from index.ts
- *   │   └── (executor, tool-loop.executor, code-files, registry — run internals)
- *   ├── generator-orchestrator.ts → .generators (all generator agents)
+ *   │   └── types.ts          → re-exported from index.ts
  *   └── index.ts     → public surface
+ *
+ * Generator agents are accessed via chatOrchestrator.generators which delegates
+ * to server/agents/generator-orchestrator.ts (its proper home).
  */
 
 import { Router } from "express";
@@ -48,91 +49,57 @@ import { resolveProjectId, getOrCreateActiveProject } from "./run/active-project
 import { waitForAnswer, resolveQuestion, pendingCount } from "./run/question-bus.ts";
 import { runs }                     from "./run/registry.ts";
 
-// ── Generator Orchestrator ───────────────────────────────────────────────────
-import { generatorOrchestrator }    from "./generator-orchestrator.ts";
+// ── Generator Orchestrator (lives in server/agents/) ─────────────────────────
+import { generatorOrchestrator }    from "../agents/generator-orchestrator.ts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 
 class ChatOrchestrator {
   // ── Run lifecycle ───────────────────────────────────────────────────────────
-  /**
-   * RunController — start, cancel, and inspect agent runs.
-   * Wraps: run/controller.ts + run/registry.ts
-   */
   get run() {
     return runManager;
   }
 
-  /**
-   * Raw run registry map (read-only view).
-   * Wraps: run/registry.ts → runs
-   */
   get runRegistry(): ReadonlyMap<string, import("./run/types.ts").RunHandle> {
     return runs;
   }
 
   // ── Project helpers ─────────────────────────────────────────────────────────
-  /**
-   * Helpers for resolving the active project from a request or the DB.
-   * Wraps: run/active-project.ts
-   */
   readonly project = {
-    /** Resolve projectId from body / query / header, validated against DB. */
     resolveId: (req: Request) => resolveProjectId(req),
-    /** Return the most recently updated project id, or null. */
     getActive: () => getOrCreateActiveProject(),
   };
 
   // ── Question bus ────────────────────────────────────────────────────────────
-  /**
-   * Agent question / answer flow.
-   * Wraps: run/question-bus.ts
-   */
   readonly questions = {
-    /** Register a pending question; returns a Promise that resolves on answer. */
     wait: (runId: string, questionId: string, defaultAnswer: string) =>
       waitForAnswer(runId, questionId, defaultAnswer),
-    /** Resolve a pending question from a user answer. Returns true if found. */
     resolve: (runId: string, questionId: string, answer: string) =>
       resolveQuestion(runId, questionId, answer),
-    /** How many questions are currently waiting for an answer. */
     pendingCount: () => pendingCount(),
   };
 
   // ── Generator Orchestrator ──────────────────────────────────────────────────
   /**
    * Unified access to ALL registered generator agents.
+   * The orchestrator itself lives at server/agents/generator-orchestrator.ts.
    *
-   * Namespaces:
    *   .generators.code          → core code generation
-   *   .generators.backend       → routes, controllers, auth, models,
-   *                               middleware, services, migrations,
-   *                               API docs, env config
-   *   .generators.frontend      → components, pages, forms, state,
-   *                               styles, tests, API clients
-   *   .generators.database      → mongoose, prisma schema generators
-   *   .generators.graphql       → schema + resolver generators
-   *   .generators.routing       → app-level route tree generator
-   *   .generators.pwa           → service worker, manifest, app shell,
-   *                               install prompt, offline strategy,
-   *                               push notifications
-   *   .generators.devops        → docker-compose, github actions,
-   *                               env pipeline validator
+   *   .generators.backend       → routes, controllers, auth, models, ...
+   *   .generators.frontend      → components, pages, forms, state, ...
+   *   .generators.database      → mongoose, prisma
+   *   .generators.graphql       → schema + resolvers
+   *   .generators.routing       → app-level route tree
+   *   .generators.pwa           → service worker, manifest, app shell, ...
+   *   .generators.devops        → docker-compose, github actions, env pipeline
    *   .generators.realtime      → chat feature, websocket server
-   *   .generators.observability → logger, health, opentelemetry,
-   *                               prometheus metrics
-   *
-   * Wraps: server/chat/generator-orchestrator.ts
+   *   .generators.observability → logger, health, otel, prometheus
    */
   get generators() {
     return generatorOrchestrator;
   }
 
   // ── HTTP routers ────────────────────────────────────────────────────────────
-  /**
-   * Build the Express router for all /api/chat/* endpoints.
-   * Mounts: history, prompts, messages, feedback, upload, stream, answer.
-   */
   buildChatRouter(): Router {
     const router = Router();
 
@@ -143,7 +110,6 @@ class ChatOrchestrator {
     router.use("/", createChatUploadRouter());
     router.use("/", createChatStreamRouter());
 
-    // User-answer endpoint — unblocks an agent waiting on question-bus
     router.post("/answer", (req: Request, res: Response) => {
       const { runId, questionId, answer } = req.body ?? {};
       if (!runId || !questionId || !answer) {
@@ -159,30 +125,16 @@ class ChatOrchestrator {
     return router;
   }
 
-  /**
-   * Build the Express router for all SSE stream endpoints.
-   * Wraps: streams/sse.ts
-   */
   buildSseRouter(): Router {
     return createSseRouter();
   }
 
   // ── Real-time / WebSocket ───────────────────────────────────────────────────
-  /**
-   * Attach WebSocket server to the HTTP server.
-   * Wraps: streams/ws-server.ts
-   */
   attachWebSocket(server: HttpServer): void {
     attachWebSocketServer(server);
   }
 
   // ── Background services ─────────────────────────────────────────────────────
-  /**
-   * Start ALL background event persistence services.
-   * Wraps: events/console-log-persister.ts + run/event-persist.ts
-   *
-   * Call once at server startup (main.ts). Idempotent for event-persist.
-   */
   startPersistence(): void {
     startConsoleLogPersister();
     attachAgentEventPersister();
