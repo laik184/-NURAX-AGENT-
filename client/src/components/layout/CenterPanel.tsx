@@ -3,7 +3,7 @@ import Editor, { type OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 import { Eye, Database, Terminal, Globe, X, Plus, GitBranch, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Preview from "@/pages/preview";
+import Preview from "@/pages/preview/index";
 import { DatabasePanel } from "@/components/panels/DatabasePanel";
 import { ConsolePanel } from "@/components/console";
 import { PublishingPanel, AuthPanel } from "@/components/panels/PublishingPanel";
