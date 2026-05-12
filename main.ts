@@ -21,6 +21,7 @@ import { createRuntimeRouter } from './server/api/runtime.routes.ts';
 import { createPreviewProxy } from './server/infrastructure/proxy/preview-proxy.ts';
 import previewPipeline from './server/preview/index.ts';
 import fileExplorerPipeline from './server/file-explorer/index.ts';
+import consolePipeline from './server/console/index.ts';
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3001;
@@ -64,6 +65,9 @@ app.use('/api', previewPipeline);
 
 // IQ2000 File Explorer Pipeline — tree/crud/search/history/watcher modules
 app.use('/api', fileExplorerPipeline);
+
+// IQ 2000 Console Pipeline — capture/filter/persist/stream/history modules
+app.use('/api', consolePipeline);
 
 // Preview proxy: /preview/:projectId/* → child process port
 app.use('/preview', createPreviewProxy());
