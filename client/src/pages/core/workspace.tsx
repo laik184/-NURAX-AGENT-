@@ -378,7 +378,12 @@ export default function Workspace() {
 
           {/* LEFT: Chat Panel */}
           <Panel defaultSize={29} minSize={15} maxSize={40}>
-            <ChatPanel inputRef={chatInputRef} onOpenFile={openFileTab} />
+            <div className="h-full flex">
+              <div style={{ width: 1, flexShrink: 0, background: "rgba(255,255,255,0.08)" }} />
+              <div className="flex-1 min-w-0">
+                <ChatPanel inputRef={chatInputRef} onOpenFile={openFileTab} />
+              </div>
+            </div>
           </Panel>
 
 
