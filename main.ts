@@ -19,6 +19,7 @@ import { createLegacyAliasRouter } from './server/api/legacy-aliases.routes.ts';
 import { createCompatRouter } from './server/api/compat.routes.ts';
 import { createRuntimeRouter } from './server/api/runtime.routes.ts';
 import { createPreviewProxy } from './server/infrastructure/proxy/preview-proxy.ts';
+import { processRegistry } from './server/infrastructure/process/process-registry.ts';
 import previewPipeline from './server/preview/index.ts';
 import fileExplorerPipeline from './server/file-explorer/index.ts';
 import consolePipeline from './server/console/index.ts';
@@ -135,19 +136,21 @@ const server = createServer(app);
 chatOrchestrator.attachWebSocket(server);
 chatOrchestrator.startPersistence();
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', async () => {
   console.log(`[nura-x] API server running on port ${PORT}`);
   console.log(`[nura-x] Environment: ${process.env.NODE_ENV || 'development'}`);
+  // Load persisted runtime state, reconcile against live PIDs, start health monitor
+  await processRegistry.init();
 });
 
-process.on('SIGTERM', () => {
-  console.log('[nura-x] SIGTERM received — graceful shutdown');
+async function gracefulShutdown(signal: string): Promise<void> {
+  console.log(`[nura-x] ${signal} received — graceful shutdown`);
+  // Flush runtime state to disk and SIGKILL all children before exit
+  await processRegistry.shutdown();
   server.close(() => process.exit(0));
-});
+}
 
-process.on('SIGINT', () => {
-  console.log('[nura-x] SIGINT received — graceful shutdown');
-  server.close(() => process.exit(0));
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'));
 
 export default app;
