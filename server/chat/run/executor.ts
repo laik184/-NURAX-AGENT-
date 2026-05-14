@@ -1,27 +1,38 @@
-import { eq } from "drizzle-orm";
-import { executePipeline } from "../../agents/core/pipeline/index.ts";
-import { db } from "../../infrastructure/db/index.ts";
-import { agentRuns } from "../../../shared/schema.ts";
-import { bus, type AgentEvent } from "../../infrastructure/events/bus.ts";
-import { extractCodeFiles, writeFiles } from "./code-files.ts";
-import { clearCancel, isCancelled } from "./registry.ts";
-import type { RunHandle, RunInput } from "./types.ts";
+/**
+ * executor.ts
+ *
+ * Run lifecycle executor for the 9-phase pipeline agent.
+ * Invoked only when mode="pipeline" is explicitly set on RunInput.
+ *
+ * The pipeline is a static rule-based orchestration engine (safety → routing →
+ * decision → planning → validation → generation dispatch → execution →
+ * recovery → feedback → memory). It does NOT call the LLM directly.
+ *
+ * For real-time LLM tool-calling use tool-loop.executor.ts (mode="agent")
+ * or planned.executor.ts (mode="planned").
+ */
 
-function emit(event: AgentEvent): void {
-  bus.emit("agent.event", event);
-}
+import { executePipeline } from "../../agents/core/pipeline/index.ts";
+import { ensureProjectDir } from "../../infrastructure/sandbox/sandbox.util.ts";
+import { extractCodeFiles, writeFiles } from "./code-files.ts";
+import { isCancelled } from "./registry.ts";
+import { emitAgentEvent, withRunLifecycle } from "./run-lifecycle.ts";
+import type { RunHandle, RunInput } from "./types.ts";
 
 export async function executePipelineRun(handle: RunHandle, input: RunInput): Promise<void> {
   const { runId, projectId } = handle;
-  try {
-    emit({
-      runId,
-      projectId,
-      phase: "routing",
-      eventType: "phase.started",
-      payload: { goal: input.goal, mode: input.mode || "core" },
-      ts: Date.now(),
-    });
+
+  emitAgentEvent({
+    runId,
+    projectId,
+    phase: "routing",
+    eventType: "phase.started",
+    payload: { goal: input.goal, mode: input.mode || "core" },
+    ts: Date.now(),
+  });
+
+  return withRunLifecycle(handle, "routing", async () => {
+    await ensureProjectDir(projectId);
 
     const result = await executePipeline({
       requestId: runId,
@@ -34,7 +45,7 @@ export async function executePipelineRun(handle: RunHandle, input: RunInput): Pr
 
     for (const phase of result.phases) {
       if (isCancelled(runId)) break;
-      emit({
+      emitAgentEvent({
         runId,
         projectId,
         phase: phase.phase,
@@ -53,47 +64,13 @@ export async function executePipelineRun(handle: RunHandle, input: RunInput): Pr
       }
     }
 
-    const finalStatus = isCancelled(runId)
-      ? "cancelled"
-      : result.success
-      ? "success"
-      : "failed";
-
-    await db
-      .update(agentRuns)
-      .set({
-        status: finalStatus,
-        endedAt: new Date(),
-        result: {
-          finalPhase: result.finalPhase,
-          totalDurationMs: result.totalDurationMs,
-          error: result.error,
-        } as any,
-      })
-      .where(eq(agentRuns.id, runId));
-
-    handle.status = finalStatus as RunHandle["status"];
-    bus.emit("run.lifecycle", {
-      runId,
-      projectId,
-      status: finalStatus as "completed" | "failed" | "cancelled",
-      ts: Date.now(),
-    });
-    clearCancel(runId);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    emit({
-      runId,
-      projectId,
-      eventType: "phase.failed",
-      payload: { error: message },
-      ts: Date.now(),
-    });
-    await db
-      .update(agentRuns)
-      .set({ status: "failed", endedAt: new Date(), result: { error: message } as any })
-      .where(eq(agentRuns.id, runId));
-    handle.status = "failed";
-    bus.emit("run.lifecycle", { runId, projectId, status: "failed", ts: Date.now() });
-  }
+    return {
+      success: result.success,
+      result: {
+        finalPhase: result.finalPhase,
+        totalDurationMs: result.totalDurationMs,
+        error: result.error,
+      },
+    };
+  });
 }

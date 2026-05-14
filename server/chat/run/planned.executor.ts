@@ -2,45 +2,33 @@
  * planned.executor.ts
  *
  * Run lifecycle executor for the Planner Agent.
- * Mirrors tool-loop.executor.ts structure but routes complex goals
- * through the Planner Agent before execution.
  *
- * Responsibilities:
- *  1. Emit run lifecycle events
- *  2. Ensure sandbox directory exists
- *  3. Run Planner Agent (plan → phase execution)
- *  4. Update DB with final status and result
+ * Routes complex goals through the Planner Agent before execution:
+ *   1. LLM decomposes the goal into ordered phases
+ *   2. Each phase is executed sequentially via the tool-loop agent
+ *
+ * Ensures sandbox directory exists, emits agent.event phase events,
+ * and delegates DB updates + run.lifecycle emission to withRunLifecycle.
  */
 
-import { eq } from "drizzle-orm";
 import { runPlannerAgent } from "../../agents/planning/index.ts";
-import { db } from "../../infrastructure/db/index.ts";
-import { agentRuns } from "../../../shared/schema.ts";
-import { bus, type AgentEvent } from "../../infrastructure/events/bus.ts";
 import { ensureProjectDir } from "../../infrastructure/sandbox/sandbox.util.ts";
-import { clearCancel, isCancelled } from "./registry.ts";
+import { emitAgentEvent, withRunLifecycle } from "./run-lifecycle.ts";
 import type { RunHandle, RunInput } from "./types.ts";
 
-function emit(event: AgentEvent): void {
-  bus.emit("agent.event", event);
-}
-
-export async function executePlannedRun(
-  handle: RunHandle,
-  input: RunInput
-): Promise<void> {
+export async function executePlannedRun(handle: RunHandle, input: RunInput): Promise<void> {
   const { runId, projectId } = handle;
 
-  try {
-    emit({
-      runId,
-      projectId,
-      phase: "planner",
-      eventType: "phase.started",
-      payload: { goal: input.goal, mode: "planned" },
-      ts: Date.now(),
-    });
+  emitAgentEvent({
+    runId,
+    projectId,
+    phase: "planner",
+    eventType: "phase.started",
+    payload: { goal: input.goal, mode: "planned" },
+    ts: Date.now(),
+  });
 
+  return withRunLifecycle(handle, "planner", async () => {
     await ensureProjectDir(projectId);
 
     const result = await runPlannerAgent({
@@ -54,13 +42,7 @@ export async function executePlannedRun(
           : 20,
     });
 
-    const finalStatus = isCancelled(runId)
-      ? "cancelled"
-      : result.overallSuccess
-      ? "success"
-      : "failed";
-
-    emit({
+    emitAgentEvent({
       runId,
       projectId,
       phase: "planner",
@@ -79,45 +61,16 @@ export async function executePlannedRun(
       ts: Date.now(),
     });
 
-    await db
-      .update(agentRuns)
-      .set({
-        status: finalStatus,
-        endedAt: new Date(),
-        result: {
-          planned: true,
-          phases: result.plan.phases.length,
-          totalSteps: result.totalSteps,
-          durationMs: result.durationMs,
-          overallSuccess: result.overallSuccess,
-          phaseResults: result.phaseResults,
-        } as any,
-      })
-      .where(eq(agentRuns.id, runId));
-
-    handle.status = finalStatus as RunHandle["status"];
-    bus.emit("run.lifecycle", {
-      runId,
-      projectId,
-      status: finalStatus as "completed" | "failed" | "cancelled",
-      ts: Date.now(),
-    });
-    clearCancel(runId);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    emit({
-      runId,
-      projectId,
-      phase: "planner",
-      eventType: "phase.failed",
-      payload: { error: message },
-      ts: Date.now(),
-    });
-    await db
-      .update(agentRuns)
-      .set({ status: "failed", endedAt: new Date(), result: { error: message } as any })
-      .where(eq(agentRuns.id, runId));
-    handle.status = "failed";
-    bus.emit("run.lifecycle", { runId, projectId, status: "failed", ts: Date.now() });
-  }
+    return {
+      success: result.overallSuccess,
+      result: {
+        planned: true,
+        phases: result.plan.phases.length,
+        totalSteps: result.totalSteps,
+        durationMs: result.durationMs,
+        overallSuccess: result.overallSuccess,
+        phaseResults: result.phaseResults,
+      },
+    };
+  });
 }

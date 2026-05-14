@@ -1,39 +1,33 @@
 /**
  * tool-loop.executor.ts
  *
- * Run lifecycle executor for the tool-loop agent.
+ * Run lifecycle executor for the tool-loop agent (default execution mode).
+ *
  * This is NOT an agent — it is the run manager that:
- *   1. Calls the real agent (server/agents/core/tool-loop/)
- *   2. Handles DB updates (agentRuns table)
- *   3. Emits run.lifecycle events on the bus
- *   4. Handles cancellation
+ *   1. Ensures the sandbox directory exists
+ *   2. Calls the real agent (server/agents/core/tool-loop/)
+ *   3. Emits agent.event phase events on the bus
+ *   4. Delegates DB updates + run.lifecycle emission to withRunLifecycle
  */
 
-import { eq } from "drizzle-orm";
 import { runAgentLoop } from "../../agents/core/tool-loop/index.ts";
-import { db } from "../../infrastructure/db/index.ts";
-import { agentRuns } from "../../../shared/schema.ts";
-import { bus, type AgentEvent } from "../../infrastructure/events/bus.ts";
 import { ensureProjectDir } from "../../infrastructure/sandbox/sandbox.util.ts";
-import { clearCancel, isCancelled } from "./registry.ts";
+import { emitAgentEvent, withRunLifecycle } from "./run-lifecycle.ts";
 import type { RunHandle, RunInput } from "./types.ts";
-
-function emit(event: AgentEvent): void {
-  bus.emit("agent.event", event);
-}
 
 export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Promise<void> {
   const { runId, projectId } = handle;
-  try {
-    emit({
-      runId,
-      projectId,
-      phase: "tool-loop",
-      eventType: "phase.started",
-      payload: { goal: input.goal, mode: "agent" },
-      ts: Date.now(),
-    });
 
+  emitAgentEvent({
+    runId,
+    projectId,
+    phase: "tool-loop",
+    eventType: "phase.started",
+    payload: { goal: input.goal, mode: "agent" },
+    ts: Date.now(),
+  });
+
+  return withRunLifecycle(handle, "tool-loop", async () => {
     await ensureProjectDir(projectId);
 
     const result = await runAgentLoop({
@@ -43,17 +37,11 @@ export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Pr
       systemPrompt: input.systemPrompt,
       maxSteps:
         typeof input.context?.maxSteps === "number"
-          ? (input.context!.maxSteps as number)
+          ? (input.context.maxSteps as number)
           : 25,
     });
 
-    const finalStatus = isCancelled(runId)
-      ? "cancelled"
-      : result.success
-      ? "success"
-      : "failed";
-
-    emit({
+    emitAgentEvent({
       runId,
       projectId,
       phase: "tool-loop",
@@ -67,43 +55,14 @@ export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Pr
       ts: Date.now(),
     });
 
-    await db
-      .update(agentRuns)
-      .set({
-        status: finalStatus,
-        endedAt: new Date(),
-        result: {
-          steps: result.steps,
-          stopReason: result.stopReason,
-          summary: result.summary,
-          error: result.error,
-        } as any,
-      })
-      .where(eq(agentRuns.id, runId));
-
-    handle.status = finalStatus as RunHandle["status"];
-    bus.emit("run.lifecycle", {
-      runId,
-      projectId,
-      status: finalStatus as "completed" | "failed" | "cancelled",
-      ts: Date.now(),
-    });
-    clearCancel(runId);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    emit({
-      runId,
-      projectId,
-      phase: "tool-loop",
-      eventType: "phase.failed",
-      payload: { error: message },
-      ts: Date.now(),
-    });
-    await db
-      .update(agentRuns)
-      .set({ status: "failed", endedAt: new Date(), result: { error: message } as any })
-      .where(eq(agentRuns.id, runId));
-    handle.status = "failed";
-    bus.emit("run.lifecycle", { runId, projectId, status: "failed", ts: Date.now() });
-  }
+    return {
+      success: result.success,
+      result: {
+        steps: result.steps,
+        stopReason: result.stopReason,
+        summary: result.summary,
+        error: result.error,
+      },
+    };
+  });
 }
