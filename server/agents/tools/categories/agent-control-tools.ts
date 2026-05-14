@@ -1,5 +1,6 @@
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 import { bus } from "../../../infrastructure/events/bus.ts";
+import { waitForAnswer } from "../../../chat/run/question-bus.ts";
 import { v4 as uuidv4 } from "uuid";
 
 export const taskComplete: Tool = {
@@ -63,6 +64,7 @@ export const agentQuestion: Tool = {
     const questionId = uuidv4();
     const defaultAnswer = (args.default as string) || (args.options as string[])[0] || "yes";
 
+    // Emit the question event so the frontend renders the QuestionCard
     bus.emit("agent.event", {
       runId: ctx.runId,
       eventType: "agent.question",
@@ -76,14 +78,27 @@ export const agentQuestion: Tool = {
       ts: Date.now(),
     });
 
+    // BLOCK the agent loop here — execution pauses until the user answers
+    // (or the 5-minute timeout fires and falls back to defaultAnswer).
+    const answer = await waitForAnswer(ctx.runId, questionId, defaultAnswer);
+
+    // Emit confirmation so the frontend can mark the question as answered
+    bus.emit("agent.event", {
+      runId: ctx.runId,
+      eventType: "agent.question.answered",
+      phase: "tool-loop",
+      payload: { questionId, answer },
+      ts: Date.now(),
+    });
+
     return {
       ok: true,
       result: {
         questionId,
         question: args.text,
         options: args.options,
-        answer: defaultAnswer,
-        message: "Question sent to user. Using default answer to continue.",
+        answer,
+        message: `User answered: "${answer}"`,
       },
     };
   },

@@ -170,6 +170,23 @@ export function useAgentRunner() {
               setMessages((prev) => [...prev, { role: "question" as const, time: "just now", question: { text, options, questionId, runId: currentRunIdRef.current ?? "" } }]);
             break;
           }
+          case "agent.question.answered": {
+            // Server confirmed the answer was received — mark question answered in UI.
+            // Handles reconnect scenarios where local state was lost.
+            const { questionId: answeredId, answer: confirmedAnswer } = e.payload ?? {};
+            if (answeredId && confirmedAnswer) {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.role === "question" && m.question.questionId === answeredId
+                    ? { ...m, question: { ...m.question, answered: confirmedAnswer } }
+                    : m,
+                ),
+              );
+            }
+            setIsAgentThinking(true);
+            setActiveAction({ type: "action", tool: "analysis.think", content: "Processing answer…", status: "running" });
+            break;
+          }
           case "agent.message": {
             flushGroup();
             setIsAgentTyping(false);
