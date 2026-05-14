@@ -217,179 +217,8 @@ function InvitePopup({ onClose }: { onClose: () => void }) {
   );
 }
 
-
-function LogoIntro({ onDone }: { onDone: () => void }) {
-  const [phase, setPhase] = useState<"enter" | "glow" | "pulse" | "exit">("enter");
-
-  useEffect(() => {
-    const t1 = setTimeout(() => setPhase("glow"), 200);
-    const t2 = setTimeout(() => setPhase("pulse"), 800);
-    const t3 = setTimeout(() => setPhase("exit"), 1500);
-    const t4 = setTimeout(() => onDone(), 2000);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
-      clearTimeout(t4);
-    };
-  }, [onDone]);
-
-  const isVisible = phase !== "exit";
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center"
-      style={{
-        background: "#080808",
-        opacity: isVisible ? 1 : 0,
-        transition: "opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
-        pointerEvents: isVisible ? "all" : "none",
-      }}
-    >
-      {/* Animated background radial glow */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(124,141,255,0.13) 0%, rgba(167,139,250,0.07) 40%, transparent 70%)",
-          opacity: phase === "glow" || phase === "pulse" ? 1 : 0,
-          transition: "opacity 0.8s ease",
-        }}
-      />
-
-      {/* Outer ring pulse */}
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: 240,
-          height: 240,
-          border: "1px solid rgba(124,141,255,0.12)",
-          opacity: phase === "pulse" ? 1 : 0,
-          transform: phase === "pulse" ? "scale(1)" : "scale(0.6)",
-          transition: "all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        }}
-      />
-      <div
-        className="absolute rounded-full"
-        style={{
-          width: 180,
-          height: 180,
-          border: "1px solid rgba(167,139,250,0.16)",
-          opacity: phase === "pulse" ? 1 : 0,
-          transform: phase === "pulse" ? "scale(1)" : "scale(0.6)",
-          transition: "all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.05s",
-        }}
-      />
-
-      {/* Logo container */}
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 20,
-          opacity: phase === "enter" ? 0 : phase === "exit" ? 0 : 1,
-          transform:
-            phase === "enter"
-              ? "scale(0.72) translateY(16px)"
-              : phase === "exit"
-                ? "scale(1.08) translateY(-6px)"
-                : "scale(1) translateY(0)",
-          transition:
-            phase === "enter"
-              ? "none"
-              : phase === "exit"
-                ? "all 0.5s cubic-bezier(0.4, 0, 1, 1)"
-                : "all 0.7s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        }}
-      >
-        {/* Logo mark */}
-        <div
-          style={{
-            width: 80,
-            height: 80,
-            borderRadius: 24,
-            background: "linear-gradient(135deg, #7c8dff 0%, #a78bfa 100%)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            boxShadow:
-              phase === "glow" || phase === "pulse"
-                ? "0 0 50px rgba(124,141,255,0.65), 0 0 100px rgba(167,139,250,0.35), 0 0 180px rgba(124,141,255,0.15)"
-                : "0 0 20px rgba(124,141,255,0.3)",
-            transition: "box-shadow 0.8s ease",
-          }}
-        >
-          <Sparkles style={{ width: 36, height: 36, color: "white" }} />
-        </div>
-
-        {/* Brand name */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-          <span
-            style={{
-              fontSize: 32,
-              fontWeight: 700,
-              letterSpacing: "0.18em",
-              background: "linear-gradient(135deg, #e0e4ff 0%, #c4b5fd 50%, #a78bfa 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              backgroundClip: "text",
-            }}
-          >
-            NURA X
-          </span>
-          <span
-            style={{
-              fontSize: 10,
-              color: "rgba(148,163,184,0.7)",
-              letterSpacing: "0.28em",
-              textTransform: "uppercase",
-            }}
-          >
-            AI Workspace
-          </span>
-        </div>
-
-        {/* Loading text */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            opacity: phase === "glow" || phase === "pulse" ? 1 : 0,
-            transition: "opacity 0.5s ease 0.3s",
-            marginTop: 4,
-          }}
-        >
-          <span style={{ display: "flex", gap: 4 }}>
-            {[0, 1, 2].map((i) => (
-              <span
-                key={i}
-                className="animate-bounce"
-                style={{
-                  width: 4,
-                  height: 4,
-                  borderRadius: "50%",
-                  background: "rgba(124,141,255,0.7)",
-                  display: "inline-block",
-                  animationDelay: `${i * 150}ms`,
-                }}
-              />
-            ))}
-          </span>
-          <span style={{ fontSize: 11, color: "rgba(148,163,184,0.6)", letterSpacing: "0.02em" }}>
-            Initializing your AI workspace...
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function Workspace() {
   const [, navigate] = useLocation();
-  const [showIntro, setShowIntro] = useState(true);
-  const [ideVisible, setIdeVisible] = useState(false);
   const [chatInput, setChatInput] = useState("");
   // Preview tab is open by default so the user immediately sees their app.
   const [tabs, setTabs] = useState<WorkspaceTab[]>([
@@ -459,16 +288,6 @@ export default function Workspace() {
   const params = new URLSearchParams(window.location.search);
   const initialPrompt = params.get("prompt") || "";
 
-  const handleIntroDone = () => {
-    setShowIntro(false);
-    setTimeout(() => {
-      setIdeVisible(true);
-      setTimeout(() => {
-        chatInputRef.current?.focus();
-      }, 300);
-    }, 50);
-  };
-
   const projectName = initialPrompt
     ? initialPrompt.length > 28
       ? initialPrompt.slice(0, 28) + "..."
@@ -477,19 +296,10 @@ export default function Workspace() {
 
   return (
     <>
-      {showIntro && <LogoIntro onDone={handleIntroDone} />}
-
       {/* IDE Layout */}
       <div
-        className={cn(
-          "flex flex-col h-full w-full min-h-0 overflow-hidden bg-[#080808]",
-          "transition-all duration-700 ease-out"
-        )}
-        style={{
-          opacity: ideVisible ? 1 : 0,
-          transform: ideVisible ? "translateY(0)" : "translateY(10px)",
-          minWidth: 0,
-        }}
+        className="flex flex-col h-full w-full min-h-0 overflow-hidden bg-[#080808]"
+        style={{ minWidth: 0 }}
       >
         {/* Top bar */}
         <div
