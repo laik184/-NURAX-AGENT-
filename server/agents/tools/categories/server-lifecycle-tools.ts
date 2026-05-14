@@ -1,71 +1,50 @@
-import { spawn, type ChildProcess } from "child_process";
+/**
+ * server-lifecycle-tools.ts
+ *
+ * AI agent tools for starting, stopping, restarting, and inspecting
+ * the project dev server.
+ *
+ * ALL process state is owned by ProcessRegistry — no local maps here.
+ */
+
+import { processRegistry } from "../../../infrastructure/process/process-registry.ts";
 import { getProjectDir } from "../../../infrastructure/sandbox/sandbox.util.ts";
-import { setProjectPort } from "../../../infrastructure/proxy/preview-proxy.ts";
-import { bus } from "../../../infrastructure/events/bus.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
-
-interface ServerState {
-  process: ChildProcess;
-  port: number;
-  logs: string[];
-  startedAt: number;
-}
-
-const servers = new Map<number, ServerState>();
-
-function allocatePort(projectId: number): number {
-  return 5000 + (projectId % 1000);
-}
-
-function startProcess(projectId: number): ServerState {
-  const projectDir = getProjectDir(projectId);
-  const port = allocatePort(projectId);
-  const logs: string[] = [];
-
-  const proc = spawn("npm", ["run", "dev"], {
-    cwd: projectDir,
-    env: { ...process.env, PORT: String(port), NODE_ENV: "development" },
-    shell: false,
-  });
-
-  function onData(stream: "stdout" | "stderr", data: Buffer): void {
-    const line = data.toString().trim();
-    logs.push(`[${stream}] ${line}`);
-    if (logs.length > 200) logs.shift();
-    bus.emit("console.log", { projectId, stream, line, ts: Date.now() });
-  }
-
-  proc.stdout.on("data", (d: Buffer) => onData("stdout", d));
-  proc.stderr.on("data", (d: Buffer) => onData("stderr", d));
-  proc.on("exit", (code) => {
-    logs.push(`[process] exited with code ${code}`);
-    servers.delete(projectId);
-  });
-
-  const state: ServerState = { process: proc, port, logs, startedAt: Date.now() };
-  servers.set(projectId, state);
-  setProjectPort(projectId, port);
-  return state;
-}
 
 export const serverStart: Tool = {
   name: "server_start",
-  description: "Start the project dev server. Runs `npm run dev` in the project directory.",
+  description: "Start the project dev server. Runs `npm run dev` in the project sandbox directory.",
   parameters: { type: "object", properties: {} },
+
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
-    const existing = servers.get(ctx.projectId);
-    if (existing) {
-      return { ok: true, result: { already_running: true, port: existing.port, message: "Server already running." } };
+    const cwd = getProjectDir(ctx.projectId);
+    const result = await processRegistry.start({ projectId: ctx.projectId, cwd });
+
+    if (!result.ok) {
+      return { ok: false, error: result.error };
     }
-    const state = startProcess(ctx.projectId);
+
+    if (result.alreadyRunning) {
+      return {
+        ok: true,
+        result: {
+          already_running: true,
+          port: result.port,
+          message: `Server already running on port ${result.port}.`,
+        },
+      };
+    }
+
+    // Brief grace period so the server can bind its port
     await new Promise((r) => setTimeout(r, 2000));
+
     return {
       ok: true,
       result: {
         started: true,
-        port: state.port,
-        previewUrl: `${process.env.REPLIT_DEV_DOMAIN || `http://localhost:${state.port}`}`,
-        message: `Dev server started on port ${state.port}. Use server_logs to check startup.`,
+        port: result.port,
+        pid: result.pid,
+        message: `Dev server started on port ${result.port}. Use server_logs to check startup output.`,
       },
     };
   },
@@ -75,13 +54,13 @@ export const serverStop: Tool = {
   name: "server_stop",
   description: "Stop the project dev server.",
   parameters: { type: "object", properties: {} },
+
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
-    const state = servers.get(ctx.projectId);
-    if (!state) {
+    if (!processRegistry.isRunning(ctx.projectId)) {
       return { ok: true, result: { message: "No running server for this project." } };
     }
-    state.process.kill("SIGTERM");
-    servers.delete(ctx.projectId);
+    const result = processRegistry.stop(ctx.projectId);
+    if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, result: { stopped: true, message: "Dev server stopped." } };
   },
 };
@@ -90,21 +69,22 @@ export const serverRestart: Tool = {
   name: "server_restart",
   description: "Restart the project dev server.",
   parameters: { type: "object", properties: {} },
+
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
-    const existing = servers.get(ctx.projectId);
-    if (existing) {
-      existing.process.kill("SIGTERM");
-      servers.delete(ctx.projectId);
-      await new Promise((r) => setTimeout(r, 500));
-    }
-    const state = startProcess(ctx.projectId);
+    const cwd = getProjectDir(ctx.projectId);
+    const result = await processRegistry.restart({ projectId: ctx.projectId, cwd });
+
+    if (!result.ok) return { ok: false, error: result.error };
+
     await new Promise((r) => setTimeout(r, 2000));
+
     return {
       ok: true,
       result: {
         restarted: true,
-        port: state.port,
-        message: `Server restarted on port ${state.port}.`,
+        port: result.port,
+        pid: result.pid,
+        message: `Server restarted on port ${result.port}.`,
       },
     };
   },
@@ -119,20 +99,21 @@ export const serverLogs: Tool = {
       tail: { type: "number", description: "Number of recent lines to return (default 50)" },
     },
   },
+
   async run(args, ctx: ToolContext): Promise<ToolResult> {
-    const state = servers.get(ctx.projectId);
-    if (!state) {
+    const entry = processRegistry.get(ctx.projectId);
+    if (!entry) {
       return { ok: true, result: { status: "stopped", lines: [], message: "No running server." } };
     }
     const tail = (args.tail as number) || 50;
-    const lines = state.logs.slice(-tail);
     return {
       ok: true,
       result: {
-        status: "running",
-        port: state.port,
-        lines,
-        uptimeMs: Date.now() - state.startedAt,
+        status: entry.status,
+        port: entry.port,
+        pid: entry.pid,
+        lines: processRegistry.getLogs(ctx.projectId, tail),
+        uptimeMs: Date.now() - entry.startedAt,
       },
     };
   },
