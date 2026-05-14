@@ -1,0 +1,254 @@
+You are a Senior Realtime Infrastructure Engineer and AI Runtime Architect.
+
+Your task is to deeply scan and fix the following critical runtime issue in the agentic AI system:
+
+━━━━━━━━━━━━━━━━━━━━
+TARGET BUG
+━━━━━━━━━━━━━━━━━━━━
+
+P4 — Console logs not streaming
+
+Current problem:
+- AI executes shell commands successfully
+- npm install / server logs / build logs run correctly
+- BUT users cannot see realtime output in Console UI
+- System feels dead/frozen
+- AI appears inactive even while working
+
+━━━━━━━━━━━━━━━━━━━━
+MAIN GOAL
+━━━━━━━━━━━━━━━━━━━━
+
+Create a REALTIME LOG STREAMING ARCHITECTURE
+similar to:
+- Replit
+- Cursor
+- Lovable
+- Bolt.new
+
+The user must see:
+- npm install logs
+- server startup logs
+- build output
+- runtime errors
+- stdout/stderr
+- tool execution output
+- restart logs
+- crash logs
+
+IN REALTIME.
+
+━━━━━━━━━━━━━━━━━━━━
+DEEP SCAN REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━
+
+Deeply inspect:
+- server/agents/tools/categories/
+- server/chat/streams/
+- server/infrastructure/events/
+- server/api/
+- server/preview/
+- client/src/components/
+- client/src/hooks/
+- client/src/context/
+
+Find:
+1. Where shell_exec stdout/stderr is captured
+2. Why logs are not reaching EventBus
+3. Why Console SSE does not receive tool output
+4. Why Preview logs and Console logs are disconnected
+5. Which runtime systems emit logs
+6. Which systems consume logs
+7. Which systems silently swallow logs
+8. Duplicate SSE systems
+9. Dead log streams
+10. Event propagation failures
+
+━━━━━━━━━━━━━━━━━━━━
+IMPORTANT ANALYSIS
+━━━━━━━━━━━━━━━━━━━━
+
+Trace COMPLETE FLOW:
+
+shell_exec
+→ child_process.spawn
+→ stdout/stderr
+→ ToolOrchestrator
+→ EventBus
+→ SSE stream
+→ frontend listener
+→ console UI render
+
+Find exact break point.
+
+━━━━━━━━━━━━━━━━━━━━
+CURRENT SUSPECTED ISSUE
+━━━━━━━━━━━━━━━━━━━━
+
+Likely problem:
+shell-tools.ts captures stdout/stderr internally
+but DOES NOT emit realtime chunks to:
+- bus.emit("console.log")
+- SSE streams
+- frontend listeners
+
+Result:
+- LLM receives logs
+- USER receives nothing
+
+AI works silently.
+
+━━━━━━━━━━━━━━━━━━━━
+REQUIRED FIX
+━━━━━━━━━━━━━━━━━━━━
+
+Implement PRODUCTION-GRADE realtime log streaming.
+
+Architecture requirements:
+
+1. ALL runtime systems must emit logs to ONE unified EventBus
+2. ALL shell stdout/stderr chunks must stream immediately
+3. Console UI must update live
+4. Preview runtime logs must share same bus
+5. Tool execution logs must appear instantly
+6. Support:
+   - stdout
+   - stderr
+   - process start
+   - process exit
+   - process crash
+   - install progress
+   - restart logs
+
+━━━━━━━━━━━━━━━━━━━━
+IMPLEMENTATION RULES
+━━━━━━━━━━━━━━━━━━━━
+
+⚠️ VERY IMPORTANT:
+- Keep code modular
+- Low coupling
+- High cohesion
+- Clean architecture
+- No hacks
+- No duplicate emitters
+- No circular dependencies
+- No giant files
+
+━━━━━━━━━━━━━━━━━━━━
+STRICT FILE RULES
+━━━━━━━━━━━━━━━━━━━━
+
+- DO NOT create files larger than 250 lines
+- Split responsibilities properly
+- One responsibility per module
+- Maintain clean folder structure
+- Avoid monolithic services
+
+━━━━━━━━━━━━━━━━━━━━
+EXPECTED ARCHITECTURE
+━━━━━━━━━━━━━━━━━━━━
+
+server/
+├── infrastructure/
+│   ├── events/
+│   │   ├── bus.ts
+│   │   ├── console-events.ts
+│   │   └── runtime-events.ts
+│   │
+│   ├── runtime/
+│   │   ├── process-registry.ts
+│   │   ├── process-log-streamer.ts
+│   │   └── process-event-emitter.ts
+│
+├── agents/
+│   ├── tools/
+│   │   ├── runtime/
+│   │   │   ├── shell-log-emitter.ts
+│   │   │   └── shell-stream-handler.ts
+│
+├── chat/
+│   ├── streams/
+│   │   ├── console-stream.ts
+│   │   └── sse-router.ts
+
+client/
+├── hooks/
+│   ├── use-console-stream.ts
+│
+├── components/
+│   ├── console/
+│   │   ├── ConsolePanel.tsx
+│   │   ├── ConsoleLogList.tsx
+│   │   └── ConsoleStatusBar.tsx
+
+━━━━━━━━━━━━━━━━━━━━
+FIX REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━
+
+Implement:
+- realtime stdout streaming
+- realtime stderr streaming
+- chunked SSE delivery
+- process lifecycle events
+- log buffering
+- reconnect-safe streaming
+- stream cleanup
+- listener cleanup
+- memory-safe buffering
+- backpressure protection
+
+━━━━━━━━━━━━━━━━━━━━
+PERFORMANCE REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━
+
+Prevent:
+- memory leaks
+- EventEmitter listener explosion
+- duplicate subscriptions
+- unbounded log arrays
+- stale SSE listeners
+- blocking writes
+
+━━━━━━━━━━━━━━━━━━━━
+SECURITY REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━
+
+Prevent:
+- log injection
+- oversized chunk spam
+- terminal escape abuse
+- unsafe process output forwarding
+
+━━━━━━━━━━━━━━━━━━━━
+OUTPUT FORMAT
+━━━━━━━━━━━━━━━━━━━━
+
+Generate:
+
+1. Root cause analysis
+2. Exact broken files
+3. Exact broken lines
+4. Current bad flow
+5. Correct realtime flow
+6. New architecture
+7. Folder structure
+8. Refactor plan
+9. Exact files to modify
+10. Exact files to create
+11. Event flow diagram
+12. SSE flow diagram
+13. Runtime flow diagram
+14. Memory safety strategy
+15. Reconnect strategy
+16. Cleanup strategy
+17. Production-grade implementation
+
+Then generate FINAL CODE PATCHES.
+
+IMPORTANT:
+- Small clean files only
+- Maximum 250 lines per file
+- Clean TypeScript
+- Strong typing
+- No pseudo code
+- Production-grade implementation only

@@ -32,6 +32,7 @@ import { streamService }  from './stream/stream.service.ts';
 import { persistService } from './persist/persist.service.ts';
 import { historyService } from './history/history.service.ts';
 import { filterService }  from './filter/filter.service.ts';
+import { bus }            from '../infrastructure/events/bus.ts';
 
 import type {
   AttachOptions,
@@ -179,6 +180,14 @@ export class ConsoleOrchestrator {
 
     // Stream: fan-out to all SSE clients watching this project
     streamService.broadcast(line);
+
+    // Bridge to global EventBus so /sse/console and all bus subscribers receive logs
+    bus.emit('console.log', {
+      projectId: line.projectId,
+      stream:    line.kind === 'stderr' || line.kind === 'error' ? 'stderr' : 'stdout',
+      line:      line.text,
+      ts:        line.ts.getTime(),
+    });
 
     this.emit({
       type: 'line-streamed',

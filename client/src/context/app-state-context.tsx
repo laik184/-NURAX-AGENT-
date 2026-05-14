@@ -55,16 +55,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       if (!mounted) return;
       try {
         es = new EventSource('/sse/console');
-        es.onmessage = (ev: MessageEvent) => {
+
+        const handleConsoleEvent = (ev: MessageEvent) => {
           if (!ev.data) return;
-          if (ev.data.trim().startsWith(':')) return;
           try {
             const parsed = JSON.parse(ev.data);
-            setConsoleOutput(prev => [...prev, JSON.stringify(parsed)].slice(-1000));
+            const text = parsed.line ?? parsed.text ?? parsed.message ?? JSON.stringify(parsed);
+            setConsoleOutput(prev => [...prev, String(text)].slice(-1000));
           } catch {
             setConsoleOutput(prev => [...prev, ev.data].slice(-1000));
           }
         };
+
+        es.addEventListener('console', handleConsoleEvent);
+        es.onmessage = handleConsoleEvent;
         es.onerror = () => {
           try { es?.close(); } catch {}
           es = null;
