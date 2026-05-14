@@ -124,6 +124,26 @@ export function useAgentRunner() {
             setActiveAction(item);
             break;
           }
+          case "plan.created": {
+            const { phases, complexity, appType, phaseList, risks } = e.payload ?? {};
+            if (phases && Array.isArray(phaseList) && phaseList.length > 0) {
+              flushGroup();
+              const lines = (phaseList as { id: string; title: string }[])
+                .map((p, i) => `${i + 1}. ${p.title}`)
+                .join("\n");
+              const header = `**Execution Plan** · ${phases} phase${phases !== 1 ? "s" : ""} · ${complexity ?? ""}${appType ? ` · ${appType}` : ""}`;
+              const riskLine = Array.isArray(risks) && risks.length ? `\n⚠ ${(risks as string[]).join(", ")}` : "";
+              setMessages((prev) => [...prev, { role: "agent", content: `${header}\n\n${lines}${riskLine}`, time: "just now" }]);
+            }
+            break;
+          }
+          case "plan.progress": {
+            const { completed, total, currentPhase, percent } = e.payload ?? {};
+            if (currentPhase && total > 0) {
+              setActiveAction({ type: "action", tool: "plan.phase", content: `Phase ${completed + 1}/${total}: ${currentPhase} (${percent}%)`, status: "running" });
+            }
+            break;
+          }
           case "phase.started": {
             const tool = `phase.${e.phase || "step"}`;
             const item: AgentStreamItem = { type: "action", tool, content: e.payload?.label || `Phase: ${e.phase || "step"}`, status: "running" };

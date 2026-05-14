@@ -71,26 +71,72 @@ export async function generatePlan(input: PlannerInput): Promise<ExecutionPlan> 
   return validatePlan(rawOutput, input.goal, input.runId, input.projectId);
 }
 
+// ─── Planning heuristic ───────────────────────────────────────────────────────
+
 /**
- * Determine whether a goal needs planning or can go directly to tool-loop.
- * Simple heuristic: word count and keyword detection.
+ * Action verbs that signal discrete work units.
+ * Each verb found adds weight toward "needs planning".
+ */
+const ACTION_VERBS: readonly string[] = [
+  "build", "create", "make", "implement", "setup", "set up",
+  "add", "integrate", "connect", "configure", "deploy", "generate",
+  "develop", "design", "write", "install", "migrate",
+];
+
+/**
+ * System components — each is a non-trivial, independent work unit.
+ * Two or more → planning is required.
+ */
+const SYSTEM_COMPONENTS: readonly string[] = [
+  "auth", "authentication", "login", "signup", "sign up", "register",
+  "database", "schema", "migration", "orm", "model",
+  "payment", "stripe", "billing", "subscription",
+  "dashboard", "admin", "panel", "analytics",
+  "api", "rest", "graphql", "endpoint", "route", "crud",
+  "frontend", "ui", "interface", "component", "page",
+  "backend", "server", "service",
+  "email", "notification", "webhook",
+  "deploy", "docker", "container", "ci", "cd", "pipeline",
+  "test", "testing", "coverage", "spec",
+  "realtime", "real-time", "websocket", "socket", "live",
+  "cache", "redis", "queue", "worker",
+  "file upload", "storage", "s3", "cdn",
+  "search", "elasticsearch", "algolia",
+  "role", "permission", "rbac", "access control",
+];
+
+/**
+ * Determine whether a goal should be decomposed by the Planner Agent
+ * or sent directly to the tool-loop for immediate execution.
+ *
+ * Decision criteria (any one triggers planning):
+ *   1. Two or more distinct system components detected
+ *   2. Multiple action verbs + at least one component (multi-step workflow)
+ *   3. Word count >= 30 (long goals are implicitly complex)
+ *   4. Two or more "and" conjunctions + at least one component
  */
 export function needsPlanning(goal: string): boolean {
   const words = goal.trim().split(/\s+/).length;
-  if (words < 15) return false;
-
-  const complexKeywords = [
-    "auth", "login", "signup", "register",
-    "database", "schema", "migration",
-    "payment", "stripe", "billing",
-    "dashboard", "admin", "panel",
-    "api", "rest", "graphql", "endpoint",
-    "deploy", "docker", "container",
-    "test", "coverage", "ci",
-    "and", "with", "including", "plus",
-  ];
-
   const lower = goal.toLowerCase();
-  const matchCount = complexKeywords.filter((kw) => lower.includes(kw)).length;
-  return matchCount >= 2 || words >= 40;
+
+  // Very short goals are never complex enough to need planning
+  if (words < 8) return false;
+
+  const componentCount = SYSTEM_COMPONENTS.filter((c) => lower.includes(c)).length;
+  const verbCount = ACTION_VERBS.filter((v) => lower.includes(v)).length;
+
+  // Two or more distinct system components → always plan
+  if (componentCount >= 2) return true;
+
+  // Multiple discrete actions + at least one component
+  if (verbCount >= 3 && componentCount >= 1) return true;
+
+  // Long description → likely multi-step
+  if (words >= 30) return true;
+
+  // "X and Y and Z" pattern with at least one system component
+  const andCount = (lower.match(/\band\b/g) || []).length;
+  if (andCount >= 2 && componentCount >= 1) return true;
+
+  return false;
 }
