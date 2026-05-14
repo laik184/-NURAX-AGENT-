@@ -1,37 +1,33 @@
-import { useEffect, useRef } from 'react';
+/**
+ * useLiveAgentStream — subscribe to /api/agent/stream with typed named events.
+ *
+ * Fixed: removed double-listener pattern (onmessage + addEventListener).
+ * Now uses ONLY named addEventListener for each handler key, matching the
+ * server's `event: <name>` frames. onmessage is never set.
+ */
 
-type EventHandler = (data: any) => void;
+import { useEffect, useRef } from "react";
+import { openSSE, type SSEHandlers } from "@/realtime/sse-utils";
 
-export function useLiveAgentStream(handlers: Record<string, EventHandler>) {
-  const handlersRef = useRef(handlers);
+export function useLiveAgentStream(handlers: SSEHandlers): void {
+  const handlersRef = useRef<SSEHandlers>(handlers);
   handlersRef.current = handlers;
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const es = new EventSource('/api/agent/stream');
-    const onMessage = (e: MessageEvent) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (handlersRef.current[data.type]) handlersRef.current[data.type](data);
-      } catch (err) {
-        // ignore
-      }
-    };
-    es.onmessage = onMessage;
-    const currentHandlers = handlersRef.current;
-    Object.keys(currentHandlers).forEach(evt => {
-      es.addEventListener(evt, (ev: MessageEvent) => {
-        try {
-          const d = JSON.parse(ev.data);
-          handlersRef.current[evt](d);
-        } catch(e) {}
-      });
+    // Stable dispatch wrappers — delegate to latest handlers via ref,
+    // so handler identity changes never force a reconnect.
+    const stableHandlers: SSEHandlers = {};
+    for (const key of Object.keys(handlers)) {
+      stableHandlers[key] = (data) => {
+        handlersRef.current[key]?.(data);
+      };
+    }
+
+    const close = openSSE("/api/agent/stream", stableHandlers, () => {
+      // suppress connection errors — backend may not be running
     });
-    es.onerror = () => {
-      // suppress connection errors for missing backend
-    };
-    return () => {
-      es.close();
-    };
-  }, []);
+
+    return close;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — reconnection handled via handlersRef
 }

@@ -1,38 +1,41 @@
+/**
+ * sse.ts — Central SSE endpoint router
+ *
+ * All endpoints follow the same pattern:
+ *   1. setupSse(res)          — set headers, flush, send ": connected"
+ *   2. bus.subscribe(...)     — one subscription per event type
+ *   3. sseSend(res, name, e)  — ONE write per event (no duplicates)
+ *   4. onClose(req, ...)      — single cleanup on connection close
+ *
+ * NEVER call res.write() directly in a handler — always use sseSend().
+ * NEVER subscribe to the same bus event twice in one endpoint.
+ */
+
 import { Router, type Request, type Response } from "express";
 import { bus } from "../../infrastructure/events/bus.ts";
-
-function setupSse(res: Response): void {
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.flushHeaders?.();
-  res.write(": connected\n\n");
-}
-
-function sseSend(res: Response, event: string, data: unknown): void {
-  res.write(`event: ${event}\n`);
-  res.write(`data: ${JSON.stringify(data)}\n\n`);
-}
+import { setupSse, sseSend, startHeartbeat, onClose } from "./sse-utils.ts";
 
 export function createSseRouter(): Router {
   const r = Router();
 
+  // ── Primary agent stream (runId-scoped) ─────────────────────────────────────
+  // Used by: useAgentRunner (main chat hook)
   r.get("/api/agent/stream", (req: Request, res: Response) => {
     setupSse(res);
     const runIdFilter = req.query.runId as string | undefined;
-    const off = bus.subscribe("agent.event", (e) => {
+    const off1 = bus.subscribe("agent.event", (e) => {
       if (runIdFilter && e.runId !== runIdFilter) return;
       sseSend(res, "agent", e);
     });
-    const offLife = bus.subscribe("run.lifecycle", (e) => {
+    const off2 = bus.subscribe("run.lifecycle", (e) => {
       if (runIdFilter && e.runId !== runIdFilter) return;
       sseSend(res, "lifecycle", e);
     });
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); offLife(); });
+    onClose(req, startHeartbeat(res), off1, off2);
   });
 
+  // ── Console log stream (projectId-scoped) ───────────────────────────────────
+  // Used by: app-state-context (AppStateProvider), console panel
   r.get("/sse/console", (req: Request, res: Response) => {
     setupSse(res);
     const projectIdFilter = req.query.projectId ? Number(req.query.projectId) : null;
@@ -40,17 +43,11 @@ export function createSseRouter(): Router {
       if (projectIdFilter !== null && e.projectId !== projectIdFilter) return;
       sseSend(res, "console", e);
     });
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); });
+    onClose(req, startHeartbeat(res), off);
   });
 
-  r.get("/api/solopilot/stream", (req: Request, res: Response) => {
-    setupSse(res);
-    const off = bus.subscribe("console.log", (e) => sseSend(res, "solopilot", e));
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); });
-  });
-
+  // ── File change stream (projectId-scoped) ────────────────────────────────────
+  // Used by: use-file-explorer (file tree refresh)
   r.get("/sse/files", (req: Request, res: Response) => {
     setupSse(res);
     const projectIdFilter = req.query.projectId ? Number(req.query.projectId) : null;
@@ -58,71 +55,81 @@ export function createSseRouter(): Router {
       if (projectIdFilter !== null && e.projectId !== projectIdFilter) return;
       sseSend(res, "file", e);
     });
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); });
+    onClose(req, startHeartbeat(res), off);
   });
 
+  // ── Solopilot console stream ─────────────────────────────────────────────────
+  // Used by: SolopilotArchitectureModal
+  r.get("/api/solopilot/stream", (req: Request, res: Response) => {
+    setupSse(res);
+    const off = bus.subscribe("console.log", (e) => sseSend(res, "solopilot", e));
+    onClose(req, startHeartbeat(res), off);
+  });
+
+  // ── AGI catch-all stream (agent + lifecycle + console) ───────────────────────
+  // Used by: useAgiStream (analytics dashboard)
+  // Sends all three event types under the "agi" event name.
   r.get("/api/stream", (req: Request, res: Response) => {
     setupSse(res);
-    const offA = bus.subscribe("agent.event", (e) => sseSend(res, "agi", e));
-    const offL = bus.subscribe("run.lifecycle", (e) => sseSend(res, "agi", e));
-    const offC = bus.subscribe("console.log", (e) => sseSend(res, "agi", e));
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); offA(); offL(); offC(); });
+    const off1 = bus.subscribe("agent.event",  (e) => sseSend(res, "agi", e));
+    const off2 = bus.subscribe("run.lifecycle", (e) => sseSend(res, "agi", e));
+    const off3 = bus.subscribe("console.log",  (e) => sseSend(res, "agi", e));
+    onClose(req, startHeartbeat(res), off1, off2, off3);
   });
 
+  // ── Legacy /sse/agent stream (runId-scoped) ───────────────────────────────────
+  // Used by: useAgentUltraStream
+  // Mirrors /api/agent/stream for backward compatibility.
+  // FIXED: removed duplicate res.write() that was causing double-emit.
   r.get("/sse/agent", (req: Request, res: Response) => {
     setupSse(res);
     const runIdFilter = req.query.runId as string | undefined;
     const off = bus.subscribe("agent.event", (e) => {
       if (runIdFilter && e.runId !== runIdFilter) return;
-      sseSend(res, "agent", e);
-      res.write(`data: ${JSON.stringify(e)}\n\n`);
+      sseSend(res, "agent", e); // ONE write only — no res.write() after this
     });
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); });
+    onClose(req, startHeartbeat(res), off);
   });
 
+  // ── Preview panel stream (console + lifecycle) ────────────────────────────────
+  // Used by: PreviewView, DevToolsPanel
   r.get("/sse/preview", (req: Request, res: Response) => {
     setupSse(res);
-    const off = bus.subscribe("console.log", (e) => sseSend(res, "preview", e));
-    const offL = bus.subscribe("run.lifecycle", (e) => sseSend(res, "preview", e));
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); offL(); });
+    const off1 = bus.subscribe("console.log",  (e) => sseSend(res, "preview", e));
+    const off2 = bus.subscribe("run.lifecycle", (e) => sseSend(res, "preview", e));
+    onClose(req, startHeartbeat(res), off1, off2);
   });
 
-  r.get("/sse/file", (req: Request, res: Response) => {
-    setupSse(res);
-    const off = bus.subscribe("file.change", (e) => sseSend(res, "file", e));
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); });
-  });
-
+  // ── Global event firehose (all four bus events) ───────────────────────────────
+  // Used by: connectSSE() in client/src/sse.ts (Dashboard, etc.)
+  // Each event type sent under the single "event" name.
   r.get("/events", (req: Request, res: Response) => {
     setupSse(res);
-    const offA = bus.subscribe("agent.event", (e) => sseSend(res, "event", e));
-    const offC = bus.subscribe("console.log", (e) => sseSend(res, "event", e));
-    const offF = bus.subscribe("file.change", (e) => sseSend(res, "event", e));
-    const offL = bus.subscribe("run.lifecycle", (e) => sseSend(res, "event", e));
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); offA(); offC(); offF(); offL(); });
+    const off1 = bus.subscribe("agent.event",  (e) => sseSend(res, "event", e));
+    const off2 = bus.subscribe("console.log",  (e) => sseSend(res, "event", e));
+    const off3 = bus.subscribe("file.change",  (e) => sseSend(res, "event", e));
+    const off4 = bus.subscribe("run.lifecycle", (e) => sseSend(res, "event", e));
+    onClose(req, startHeartbeat(res), off1, off2, off3, off4);
   });
 
+  // ── Solopilot dashboard stream (agent + lifecycle) ────────────────────────────
   r.get("/api/solopilot/dashboard/stream", (req: Request, res: Response) => {
     setupSse(res);
-    const off = bus.subscribe("agent.event", (e) => sseSend(res, "dashboard", e));
-    const offL = bus.subscribe("run.lifecycle", (e) => sseSend(res, "dashboard", e));
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); offL(); });
+    const off1 = bus.subscribe("agent.event",  (e) => sseSend(res, "dashboard", e));
+    const off2 = bus.subscribe("run.lifecycle", (e) => sseSend(res, "dashboard", e));
+    onClose(req, startHeartbeat(res), off1, off2);
   });
 
+  // ── Build log stream (console.log scoped by buildId) ─────────────────────────
   r.get("/api/builds/:buildId/logs", (req: Request, res: Response) => {
     setupSse(res);
     const buildId = req.params.buildId;
     const off = bus.subscribe("console.log", (e) => sseSend(res, "log", { buildId, ...e }));
-    const heartbeat = setInterval(() => res.write(": ping\n\n"), 15_000);
-    req.on("close", () => { clearInterval(heartbeat); off(); });
+    onClose(req, startHeartbeat(res), off);
   });
+
+  // NOTE: /sse/file (singular) has been removed — it was a zombie duplicate of
+  // /sse/files. Any client using /sse/file should switch to /sse/files.
 
   return r;
 }
