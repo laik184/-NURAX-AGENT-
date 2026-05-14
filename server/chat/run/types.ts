@@ -1,7 +1,7 @@
 export interface RunInput {
   projectId: number;
   goal: string;
-  mode?: "lite" | "economy" | "power" | "core" | "agent" | "pipeline";
+  mode?: "lite" | "economy" | "power" | "core" | "agent" | "pipeline" | "planned";
   context?: Record<string, unknown>;
   systemPrompt?: string;
 }

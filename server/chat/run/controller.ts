@@ -3,7 +3,9 @@ import { agentRuns } from "../../../shared/schema.ts";
 import { bus } from "../../infrastructure/events/bus.ts";
 import { executeToolLoopRun } from "./tool-loop.executor.ts";
 import { executePipelineRun } from "./executor.ts";
+import { executePlannedRun } from "./planned.executor.ts";
 import { getRun, newRunId, registerRun, requestCancel } from "./registry.ts";
+import { needsPlanning } from "../../agents/planning/index.ts";
 import type { RunHandle, RunInput } from "./types.ts";
 
 class RunController {
@@ -37,9 +39,16 @@ class RunController {
   }
 
   private async executeAsync(handle: RunHandle, input: RunInput): Promise<void> {
-    const useToolLoop = (input.mode ?? "agent") !== "pipeline";
-    if (useToolLoop) return executeToolLoopRun(handle, input);
-    return executePipelineRun(handle, input);
+    const mode = input.mode ?? "agent";
+
+    if (mode === "pipeline") return executePipelineRun(handle, input);
+
+    // Explicit planner mode, or auto-detect complex goals
+    if (mode === "planned" || (mode === "agent" && needsPlanning(input.goal))) {
+      return executePlannedRun(handle, input);
+    }
+
+    return executeToolLoopRun(handle, input);
   }
 
   cancel(runId: string): boolean {
