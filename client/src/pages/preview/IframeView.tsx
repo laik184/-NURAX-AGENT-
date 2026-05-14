@@ -2,7 +2,6 @@ import { type RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { DEVICE_CONFIGS, type DeviceKey } from "./preview-types";
 import { DeviceFrame, TabletFrame } from "./device-frames";
-import { CrashScreen } from "./CrashScreen";
 
 export interface IframeViewProps {
   iframeRef: RefObject<HTMLIFrameElement>;
@@ -44,7 +43,7 @@ export function IframeView({
                   className="absolute inset-0 w-full h-full border-none"
                   sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
                   title="Preview" onLoad={onIframeLoad} />
-                <CrashScreen isRunning={isRunning} onRun={onOverlayRun} />
+
               </DeviceFrame>
             </div>
           </div>
@@ -69,7 +68,7 @@ export function IframeView({
                 className="absolute inset-0 w-full h-full border-none"
                 sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
                 title="Preview" onLoad={onIframeLoad} />
-              <CrashScreen isRunning={isRunning} onRun={onOverlayRun} />
+
             </TabletFrame>
           </div>
         </div>
@@ -84,7 +83,6 @@ export function IframeView({
           className="absolute inset-0 w-full h-full border-none bg-white"
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
           title="Preview" onLoad={onIframeLoad} />
-        <CrashScreen isRunning={isRunning} onRun={onOverlayRun} />
       </div>
     );
   }
@@ -104,7 +102,6 @@ export function IframeView({
           className="w-full h-full border-none"
           sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-modals"
           title="Preview" onLoad={onIframeLoad} />
-        <CrashScreen isRunning={isRunning} onRun={onOverlayRun} />
         {selectedDevice === "fullsize" && (
           <>
             <div onMouseDown={(e) => onResizeDragStart(e, "right")} className="absolute top-0 right-0 w-2 h-full cursor-col-resize group z-10 flex items-center justify-center" title="Drag to resize width">
