@@ -65,10 +65,7 @@ function AppShell() {
   if (isWorkspace) {
     return (
       <div className="flex h-screen w-full overflow-hidden min-h-0">
-        <AppSidebar />
-        <div className="flex-1 flex overflow-hidden min-w-0 min-h-0">
-          <Router />
-        </div>
+        <Router />
       </div>
     );
   }
