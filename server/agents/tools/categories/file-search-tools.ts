@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { getProjectDir, resolveSafe } from "../../../infrastructure/sandbox/sandbox.util.ts";
+import { emitFileChange } from "../../../infrastructure/events/file-change-emitter.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 
 async function walkFiles(dir: string, glob?: string): Promise<string[]> {
@@ -29,19 +30,19 @@ export const fileSearch: Tool = {
   parameters: {
     type: "object",
     properties: {
-      pattern: { type: "string", description: "Regex pattern to search for" },
-      path: { type: "string", description: "Subdirectory to search in (default: root)" },
-      glob: { type: "string", description: "File glob filter e.g. '*.ts'" },
-      maxResults: { type: "number", description: "Max results (default 50)" },
+      pattern:       { type: "string",  description: "Regex pattern to search for" },
+      path:          { type: "string",  description: "Subdirectory to search in (default: root)" },
+      glob:          { type: "string",  description: "File glob filter e.g. '*.ts'" },
+      maxResults:    { type: "number",  description: "Max results (default 50)" },
       caseSensitive: { type: "boolean", description: "Case sensitive (default false)" },
     },
     required: ["pattern"],
   },
   async run(args, ctx: ToolContext): Promise<ToolResult> {
     const projectDir = getProjectDir(ctx.projectId);
-    const searchDir = args.path ? resolveSafe(projectDir, args.path as string) : projectDir;
+    const searchDir  = args.path ? resolveSafe(projectDir, args.path as string) : projectDir;
     const maxResults = (args.maxResults as number) || 50;
-    const flags = args.caseSensitive ? "g" : "gi";
+    const flags      = args.caseSensitive ? "g" : "gi";
     let regex: RegExp;
     try {
       regex = new RegExp(args.pattern as string, flags);
@@ -54,12 +55,12 @@ export const fileSearch: Tool = {
       if (matches.length >= maxResults) break;
       try {
         const content = await fs.readFile(file, "utf-8");
-        const lines = content.split("\n");
+        const lines   = content.split("\n");
         for (let i = 0; i < lines.length; i++) {
           if (regex.test(lines[i])) {
             matches.push({
-              file: path.relative(projectDir, file),
-              line: i + 1,
+              file:    path.relative(projectDir, file),
+              line:    i + 1,
               content: lines[i].slice(0, 200),
             });
             regex.lastIndex = 0;
@@ -79,9 +80,9 @@ export const fileReplace: Tool = {
   parameters: {
     type: "object",
     properties: {
-      path: { type: "string", description: "Relative file path" },
-      old_string: { type: "string", description: "Exact string to find and replace" },
-      new_string: { type: "string", description: "Replacement string" },
+      path:        { type: "string",  description: "Relative file path" },
+      old_string:  { type: "string",  description: "Exact string to find and replace" },
+      new_string:  { type: "string",  description: "Replacement string" },
       replace_all: { type: "boolean", description: "Replace all occurrences (default false)" },
     },
     required: ["path", "old_string", "new_string"],
@@ -89,10 +90,10 @@ export const fileReplace: Tool = {
   async run(args, ctx: ToolContext): Promise<ToolResult> {
     const projectDir = getProjectDir(ctx.projectId);
     try {
-      const abs = resolveSafe(projectDir, args.path as string);
+      const abs      = resolveSafe(projectDir, args.path as string);
       const original = await fs.readFile(abs, "utf-8");
-      const old = args.old_string as string;
-      const neu = args.new_string as string;
+      const old      = args.old_string as string;
+      const neu      = args.new_string as string;
       if (!original.includes(old)) {
         return { ok: false, error: `old_string not found in ${args.path}` };
       }
@@ -103,6 +104,7 @@ export const fileReplace: Tool = {
         ? original.split(old).length - 1
         : 1;
       await fs.writeFile(abs, replaced, "utf-8");
+      emitFileChange(ctx.projectId, "change", args.path as string);
       return { ok: true, result: { path: args.path, replacements: count } };
     } catch (e: any) {
       return { ok: false, error: e.message };

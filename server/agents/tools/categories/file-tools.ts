@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { getProjectDir, resolveSafe } from "../../../infrastructure/sandbox/sandbox.util.ts";
+import { emitFileChange } from "../../../infrastructure/events/file-change-emitter.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 
 async function buildTree(dir: string, maxDepth: number, depth = 0): Promise<string[]> {
@@ -91,9 +92,11 @@ export const fileWrite: Tool = {
     const projectDir = getProjectDir(ctx.projectId);
     try {
       const abs = resolveSafe(projectDir, args.path as string);
+      const existed = await fs.stat(abs).then(() => true).catch(() => false);
       await fs.mkdir(path.dirname(abs), { recursive: true });
       await fs.writeFile(abs, args.content as string, "utf-8");
       const stat = await fs.stat(abs);
+      emitFileChange(ctx.projectId, existed ? "change" : "add", args.path as string);
       return { ok: true, result: { path: args.path, size: stat.size, written: true } };
     } catch (e: any) {
       return { ok: false, error: e.message };
@@ -116,6 +119,7 @@ export const fileDelete: Tool = {
     try {
       const abs = resolveSafe(projectDir, args.path as string);
       await fs.rm(abs, { recursive: true, force: true });
+      emitFileChange(ctx.projectId, "unlink", args.path as string);
       return { ok: true, result: { path: args.path, deleted: true } };
     } catch (e: any) {
       return { ok: false, error: e.message };

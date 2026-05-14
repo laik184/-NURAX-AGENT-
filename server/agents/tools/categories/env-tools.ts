@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { getProjectDir } from "../../../infrastructure/sandbox/sandbox.util.ts";
+import { emitFileChange } from "../../../infrastructure/events/file-change-emitter.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 
 function parseEnv(content: string): Record<string, string> {
@@ -87,6 +88,7 @@ export const envWrite: Tool = {
         lines.push(newLine);
       }
       await fs.writeFile(envPath, lines.join("\n"), "utf-8");
+      emitFileChange(ctx.projectId, "change", (args.path as string) || ".env");
       return { ok: true, result: { key, set: true, path: args.path || ".env" } };
     } catch (e: any) {
       return { ok: false, error: e.message };

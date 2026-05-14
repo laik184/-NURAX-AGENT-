@@ -100,12 +100,19 @@ export function useFileExplorer({ projectPath, activeFile }: UseFileExplorerOpti
   useEffect(() => {
     if (!projectPath) return;
     const es = new EventSource(`/sse/files?projectId=${encodeURIComponent(projectPath)}`);
-    es.onmessage = (e) => {
+
+    const onFileEvent = (e: MessageEvent) => {
       try {
         const data = JSON.parse(e.data);
-        if (!data.projectId || data.projectId === projectPath) refreshFiles();
+        if (!data.projectId || String(data.projectId) === String(projectPath)) refreshFiles();
       } catch {}
     };
+
+    // Named event from bus-based SSE route (event: file)
+    es.addEventListener('file', onFileEvent);
+    // Fallback: plain data events from watcher SSE (no named type)
+    es.onmessage = onFileEvent;
+
     es.onerror = () => { try { es.close(); } catch {} };
     return () => { try { es.close(); } catch {} };
   }, [projectPath]);
