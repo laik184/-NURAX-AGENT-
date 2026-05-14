@@ -65,7 +65,7 @@ export function GridAgentPage() {
       className="flex flex-col h-full cursor-pointer hover:opacity-90 transition-opacity"
       onClick={() => setLocation("/agent")}
     >
-      <header className="flex items-center justify-between px-4 py-3 bg-[#1a1f2e] border-b border-gray-800">
+      <header className="flex items-center justify-between px-4 py-3 bg-[#0d0d0d] border-b border-gray-800">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" className="text-gray-400 hover:text-white hover:bg-gray-800 h-9 w-9">
             <RotateCcw className="h-5 w-5" />
@@ -84,7 +84,7 @@ export function GridAgentPage() {
           </Button>
         </div>
       </header>
-      <main className="flex-1 overflow-auto bg-[#0f1419] p-3 sm:p-4 flex flex-col">
+      <main className="flex-1 overflow-auto bg-[#080808] p-3 sm:p-4 flex flex-col">
         <div className="space-y-2 sm:space-y-3 flex-1">
           {messages.map((msg) => (
             <div
@@ -105,7 +105,7 @@ export function GridAgentPage() {
         </div>
       </main>
       
-      <div className="bg-[#1a1f2e] px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-800">
+      <div className="bg-[#0d0d0d] px-2 sm:px-4 py-2 sm:py-3 border-t border-gray-800">
         <div className="bg-[#262d3d] rounded-xl sm:rounded-2xl border border-gray-700 px-2.5 sm:px-4 py-2 sm:py-3 w-full">
           <Textarea
             value={message}

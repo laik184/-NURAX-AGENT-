@@ -77,9 +77,9 @@ export function URLSharingModal({ isOpen, onClose, publicUrl, currentPage = "pre
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1a1f2e] rounded-lg border border-gray-700 w-full max-w-md max-h-[80vh] overflow-y-auto">
+      <div className="bg-[#0d0d0d] rounded-lg border border-gray-700 w-full max-w-md max-h-[80vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700 sticky top-0 bg-[#1a1f2e]">
+        <div className="flex items-center justify-between p-4 border-b border-gray-700 sticky top-0 bg-[#0d0d0d]">
           <h2 className="text-lg font-semibold text-gray-200">Share Preview</h2>
           <Button
             variant="ghost"
@@ -164,7 +164,7 @@ export function URLSharingModal({ isOpen, onClose, publicUrl, currentPage = "pre
             <p className="text-xs font-medium text-gray-200">
               {isLocal ? "Local Dev URL" : `Page URL - ${currentPage.toUpperCase()}`}
             </p>
-            <div className="bg-[#0f1419] rounded border border-gray-700 p-3 flex items-center justify-between gap-2">
+            <div className="bg-[#080808] rounded border border-gray-700 p-3 flex items-center justify-between gap-2">
               <span className="text-sm text-green-400 font-mono break-all text-xs">{fullUrl}</span>
               <Button
                 variant="ghost"

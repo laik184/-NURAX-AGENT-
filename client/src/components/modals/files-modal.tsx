@@ -68,7 +68,7 @@ export function FilesModal({ isOpen, onClose, onFileOpen }: FilesModalProps) {
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-2 sm:p-4">
-      <div className="bg-[#0f1419] rounded-2xl w-full max-w-2xl h-[85vh] sm:h-[80vh] flex flex-col border border-gray-700">
+      <div className="bg-[#080808] rounded-2xl w-full max-w-2xl h-[85vh] sm:h-[80vh] flex flex-col border border-gray-700">
         <div className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-6 border-b border-gray-700">
           <h2 className="text-2xl sm:text-3xl font-semibold text-white">Files</h2>
           <Button variant="ghost" size="icon" onClick={onClose} className="text-gray-400 hover:text-white hover:bg-transparent h-8 w-8 sm:h-10 sm:w-10" data-testid="button-files-close">
@@ -88,7 +88,7 @@ export function FilesModal({ isOpen, onClose, onFileOpen }: FilesModalProps) {
           )}
         </div>
 
-        <div className="border-t border-gray-700 bg-[#0f1419] px-2 sm:px-4 py-2 sm:py-3">
+        <div className="border-t border-gray-700 bg-[#080808] px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex gap-1.5 sm:gap-2">
             {buttonOrder.map((buttonKey) => {
               const config = buttonConfig[buttonKey];

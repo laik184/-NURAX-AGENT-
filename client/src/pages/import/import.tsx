@@ -57,14 +57,14 @@ export default function ImportPage() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="flex-1 flex flex-col overflow-auto bg-[#0f1419] text-white">
-      <header className="sticky top-0 z-50 w-full bg-[#0f1419] border-b border-[#1f2937]">
+    <div className="flex-1 flex flex-col overflow-auto bg-[#080808] text-white">
+      <header className="sticky top-0 z-50 w-full bg-[#080808] border-b border-[#1a1a1a]">
         <div className="flex h-14 items-center px-4 gap-3">
           <Button 
             variant="ghost" 
             size="icon"
             data-testid="button-back"
-            className="text-gray-400 hover:text-white hover:bg-[#1f2937]"
+            className="text-gray-400 hover:text-white hover:bg-[#1a1a1a]"
             onClick={() => setLocation("/")}
           >
             <ChevronLeft className="h-5 w-5" />
@@ -88,7 +88,7 @@ export default function ImportPage() {
               return (
                 <button
                   key={option.id}
-                  className="w-full flex items-center gap-4 p-5 bg-[#1a1f2e] hover:bg-[#232936] border border-[#2d3748] rounded-xl transition-all group"
+                  className="w-full flex items-center gap-4 p-5 bg-[#0d0d0d] hover:bg-[#111111] border border-[#1a1a1a] rounded-xl transition-all group"
                   data-testid={`button-import-${option.id}`}
                   onClick={() => {
                     if (option.id === 'github') {

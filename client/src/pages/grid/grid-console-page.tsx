@@ -15,7 +15,7 @@ export function GridConsolePage() {
       className="flex flex-col h-full cursor-pointer hover:opacity-90 transition-opacity"
       onClick={() => setLocation("/console")}
     >
-      <div className="sticky top-0 z-50 bg-[#1a1f2e] border-b border-gray-800">
+      <div className="sticky top-0 z-50 bg-[#0d0d0d] border-b border-gray-800">
         <div className="flex items-center justify-between px-2 sm:px-4 py-2">
           <div className="flex items-center gap-1.5 sm:gap-2">
             <Terminal className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-500" />
@@ -31,7 +31,7 @@ export function GridConsolePage() {
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 bg-[#1a1f2e] border-b border-gray-800 gap-2 flex-wrap">
+      <div className="flex items-center justify-between px-2 sm:px-4 py-1.5 sm:py-2 bg-[#0d0d0d] border-b border-gray-800 gap-2 flex-wrap">
         <button className="flex items-center gap-1 text-white hover:text-gray-300 text-xs">
           <span>Workflows</span>
           <ChevronDown className="h-3 w-3" />
@@ -47,7 +47,7 @@ export function GridConsolePage() {
 
       <main className="flex-1 overflow-y-auto">
         <div className="px-2 sm:px-4 py-2 sm:py-3">
-          <div className="bg-[#1a1f2e] rounded-lg border border-gray-800 overflow-hidden">
+          <div className="bg-[#0d0d0d] rounded-lg border border-gray-800 overflow-hidden">
             <div className="w-full flex items-center justify-between p-2 sm:p-4">
               <div className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer hover:opacity-80" onClick={() => setWorkflowExpanded(!workflowExpanded)}>
                 <ChevronDown className={`h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0 transition-transform ${workflowExpanded ? 'rotate-180' : ''}`} />
@@ -65,7 +65,7 @@ export function GridConsolePage() {
               </div>
             </div>
             {workflowExpanded && (
-              <div className="border-t border-gray-800 bg-[#0f1419] p-2 sm:p-4 font-mono text-xs text-gray-300 max-h-[120px] overflow-y-auto">
+              <div className="border-t border-gray-800 bg-[#080808] p-2 sm:p-4 font-mono text-xs text-gray-300 max-h-[120px] overflow-y-auto">
                 <div className="space-y-0.5 sm:space-y-1">
                   {consoleOutput.length > 0 ? (
                     consoleOutput.map((line, idx) => (

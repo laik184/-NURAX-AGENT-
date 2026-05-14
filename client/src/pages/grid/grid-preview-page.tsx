@@ -10,7 +10,7 @@ export function GridPreviewPage() {
       onClick={() => setLocation("/preview")}
     >
       {/* Header */}
-      <div className="bg-[#1a1f2e] border-b border-gray-700 px-3 py-2 flex-shrink-0">
+      <div className="bg-[#0d0d0d] border-b border-gray-700 px-3 py-2 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-4 h-4 rounded bg-green-500"></div>
@@ -32,7 +32,7 @@ export function GridPreviewPage() {
       </div>
 
       {/* Browser Bar */}
-      <div className="bg-[#1a1f2e] border-b border-gray-700 px-3 py-2 flex-shrink-0">
+      <div className="bg-[#0d0d0d] border-b border-gray-700 px-3 py-2 flex-shrink-0">
         <div className="flex items-center gap-1.5 sm:gap-2">
           <Button variant="ghost" size="icon" className="h-7 w-7 text-gray-400 hover:text-gray-200 hover:bg-gray-700 rounded">
             <ChevronLeft className="h-3 w-3" />
@@ -44,7 +44,7 @@ export function GridPreviewPage() {
             <RefreshCw className="h-3 w-3" />
           </Button>
           
-          <div className="flex-1 flex items-center gap-2 bg-[#0f1419] rounded px-2.5 py-1.5 min-w-0">
+          <div className="flex-1 flex items-center gap-2 bg-[#080808] rounded px-2.5 py-1.5 min-w-0">
             <span className="text-gray-500 text-xs truncate">localhost:5000/agent</span>
           </div>
 
@@ -57,7 +57,7 @@ export function GridPreviewPage() {
       </div>
 
       {/* Preview Content - Empty (Real Preview Area) */}
-      <main className="flex-1 overflow-auto bg-[#0f1419]">
+      <main className="flex-1 overflow-auto bg-[#080808]">
         {/* Empty preview area - will show actual app when running */}
       </main>
     </div>

@@ -18,13 +18,13 @@ export function SidebarDrawer() {
     <>
       {isOpen && <div className="fixed inset-0 bg-black/50 z-40" onClick={closeDrawer} />}
       <div
-        className={`fixed top-0 bottom-0 z-50 w-full sm:w-96 bg-[#0f1419] border-gray-800 transition-all duration-300 ${
+        className={`fixed top-0 bottom-0 z-50 w-full sm:w-96 bg-[#080808] border-gray-800 transition-all duration-300 ${
           position === "left" ? "border-r left-0" : "border-l right-0"
         } ${
           isOpen ? "translate-x-0" : position === "left" ? "-translate-x-full" : "translate-x-full"
         }`}
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-[#1a1f2e]">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-[#0d0d0d]">
           <div className="flex items-center gap-2">
             {CurrentIcon && <CurrentIcon className="h-4 w-4 text-white" />}
             <h2 className="text-white font-semibold">{currentInfo?.title || ""}</h2>

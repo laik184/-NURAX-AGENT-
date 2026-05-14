@@ -31,7 +31,7 @@ export function IframeView({
     return (
       <>
         <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d0f18]" style={{ padding: "28px 24px 16px" }}>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#060606]" style={{ padding: "28px 24px 16px" }}>
             <div style={{
               aspectRatio: `${parseInt(cfg.width!)} / ${parseInt(cfg.height!)}`,
               height: "100%", maxWidth: "100%", maxHeight: "100%",
@@ -61,7 +61,7 @@ export function IframeView({
   if (cfg?.frame === "tablet") {
     return (
       <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
-        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "radial-gradient(ellipse at 40% 35%, #0d1829 0%, #060c18 45%, #020408 100%)", padding: "32px 40px 28px" }}>
+        <div className="absolute inset-0 flex items-center justify-center" style={{ background: "radial-gradient(ellipse at 40% 35%, #060606 0%, #040404 45%, #020202 100%)", padding: "32px 40px 28px" }}>
           <div style={{ aspectRatio: "16/9", height: "100%", maxWidth: "100%", maxHeight: "100%", position: "relative", flexShrink: 0, transition: "aspect-ratio 0.25s cubic-bezier(0.22,1,0.36,1)" }}>
             <TabletFrame>
               <iframe ref={iframeRef} src="http://localhost:5000"
@@ -88,7 +88,7 @@ export function IframeView({
   }
 
   return (
-    <div className={`flex-1 flex flex-col items-center justify-center overflow-auto gap-4 ${customWidth ? "bg-[#0d0f18] p-4" : ""}`}>
+    <div className={`flex-1 flex flex-col items-center justify-center overflow-auto gap-4 ${customWidth ? "bg-[#060606] p-4" : ""}`}>
       <div ref={previewContainerRef} className="relative flex-shrink-0" style={{
         overflow: "visible",
         transition: "width 0.25s cubic-bezier(0.22,1,0.36,1), height 0.25s cubic-bezier(0.22,1,0.36,1)",
@@ -131,7 +131,7 @@ export function IframeView({
         </div>
       )}
       {!isExecuting && cfg?.frame !== "phone" && cfg?.frame !== "tablet" && selectedDevice !== "fullsize" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#0f1419] to-[#1a1f2e] bg-opacity-95">
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#080808] to-[#0d0d0d] bg-opacity-95">
           <div className="text-center space-y-6">
             <p className="text-gray-400 text-sm">Ready to preview</p>
             <Button onClick={onPlayClick} className="bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold px-8 py-3 text-base" data-testid="button-start-now">Start Now</Button>
@@ -139,7 +139,7 @@ export function IframeView({
         </div>
       )}
       {isExecuting && cfg?.frame !== "phone" && cfg?.frame !== "tablet" && selectedDevice !== "fullsize" && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#0f1419] to-[#1a1f2e] bg-opacity-90">
+        <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-[#080808] to-[#0d0d0d] bg-opacity-90">
           <div className="text-center space-y-4">
             <p className="text-gray-300 text-sm font-medium">Running...</p>
           </div>

@@ -68,7 +68,7 @@ export default function PreviewView() {
 
       <div style={{
         flex: 1, position: "relative", overflow: "auto",
-        background: device === "desktop" ? "#000" : "radial-gradient(ellipse at 50% 50%, #0b1a2e 0%, #060e1c 55%, #000000 100%)",
+        background: device === "desktop" ? "#000" : "radial-gradient(ellipse at 50% 50%, #060606 0%, #040404 55%, #000000 100%)",
       }}>
         {device === "desktop" ? (
           <div style={{ position: "absolute", inset: 0 }}>{iframeEl}</div>

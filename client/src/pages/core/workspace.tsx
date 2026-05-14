@@ -240,7 +240,7 @@ function LogoIntro({ onDone }: { onDone: () => void }) {
     <div
       className="fixed inset-0 z-50 flex flex-col items-center justify-center"
       style={{
-        background: "hsl(222,30%,7%)",
+        background: "#080808",
         opacity: isVisible ? 1 : 0,
         transition: "opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)",
         pointerEvents: isVisible ? "all" : "none",
@@ -482,7 +482,7 @@ export default function Workspace() {
       {/* IDE Layout */}
       <div
         className={cn(
-          "flex flex-col h-full w-full min-h-0 overflow-hidden bg-[hsl(222,30%,7%)]",
+          "flex flex-col h-full w-full min-h-0 overflow-hidden bg-[#080808]",
           "transition-all duration-700 ease-out"
         )}
         style={{
