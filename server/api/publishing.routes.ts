@@ -2,6 +2,7 @@ import { Router, type Request, type Response } from "express";
 import { db } from "../infrastructure/db/index.ts";
 import { projects } from "../../shared/schema.ts";
 import { eq } from "drizzle-orm";
+import { processRegistry } from "../infrastructure/process/process-registry.ts";
 
 export function createPublishingRouter(): Router {
   const router = Router();
@@ -14,9 +15,17 @@ export function createPublishingRouter(): Router {
 
       await db.update(projects).set({ status: "published", updatedAt: new Date() }).where(eq(projects.id, projectId));
 
-      const publishUrl = process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : `http://localhost:${5000 + (projectId % 1000)}`;
+      // Use stable Replit domain when available; otherwise look up the live port
+      // from ProcessRegistry. NEVER use modulo math — it collides at projectId % 1000.
+      let publishUrl: string;
+      if (process.env.REPLIT_DEV_DOMAIN) {
+        publishUrl = `https://${process.env.REPLIT_DEV_DOMAIN}`;
+      } else {
+        const livePort = processRegistry.getPort(projectId);
+        publishUrl = livePort
+          ? `http://localhost:${livePort}`
+          : `http://localhost (server not running)`;
+      }
 
       res.json({
         ok: true,
