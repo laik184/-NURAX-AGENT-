@@ -4,11 +4,11 @@
  * AI agent tools for starting, stopping, restarting, and inspecting
  * the project dev server.
  *
- * ALL process state is owned by ProcessRegistry — no local maps here.
+ * ALL process operations delegate to runtimeManager — the single
+ * source of truth. No local Maps, no spawn calls, no path resolution here.
  */
 
-import { processRegistry } from "../../../infrastructure/process/process-registry.ts";
-import { getProjectDir } from "../../../infrastructure/sandbox/sandbox.util.ts";
+import { runtimeManager } from "../../../infrastructure/runtime/runtime-manager.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 
 export const serverStart: Tool = {
@@ -17,8 +17,7 @@ export const serverStart: Tool = {
   parameters: { type: "object", properties: {} },
 
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
-    const cwd = getProjectDir(ctx.projectId);
-    const result = await processRegistry.start({ projectId: ctx.projectId, cwd });
+    const result = await runtimeManager.start(ctx.projectId);
 
     if (!result.ok) {
       return { ok: false, error: result.error };
@@ -56,10 +55,10 @@ export const serverStop: Tool = {
   parameters: { type: "object", properties: {} },
 
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
-    if (!processRegistry.isRunning(ctx.projectId)) {
+    if (!runtimeManager.isRunning(ctx.projectId)) {
       return { ok: true, result: { message: "No running server for this project." } };
     }
-    const result = processRegistry.stop(ctx.projectId);
+    const result = runtimeManager.stop(ctx.projectId);
     if (!result.ok) return { ok: false, error: result.error };
     return { ok: true, result: { stopped: true, message: "Dev server stopped." } };
   },
@@ -71,8 +70,7 @@ export const serverRestart: Tool = {
   parameters: { type: "object", properties: {} },
 
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
-    const cwd = getProjectDir(ctx.projectId);
-    const result = await processRegistry.restart({ projectId: ctx.projectId, cwd });
+    const result = await runtimeManager.restart(ctx.projectId);
 
     if (!result.ok) return { ok: false, error: result.error };
 
@@ -101,7 +99,7 @@ export const serverLogs: Tool = {
   },
 
   async run(args, ctx: ToolContext): Promise<ToolResult> {
-    const entry = processRegistry.get(ctx.projectId);
+    const entry = runtimeManager.get(ctx.projectId);
     if (!entry) {
       return { ok: true, result: { status: "stopped", lines: [], message: "No running server." } };
     }
@@ -112,8 +110,8 @@ export const serverLogs: Tool = {
         status: entry.status,
         port: entry.port,
         pid: entry.pid,
-        lines: processRegistry.getLogs(ctx.projectId, tail),
-        uptimeMs: Date.now() - entry.startedAt,
+        lines: runtimeManager.getLogs(ctx.projectId, tail),
+        uptimeMs: entry.uptimeMs,
       },
     };
   },

@@ -19,7 +19,7 @@ import { createLegacyAliasRouter } from './server/api/legacy-aliases.routes.ts';
 import { createCompatRouter } from './server/api/compat.routes.ts';
 import { createRuntimeRouter } from './server/api/runtime.routes.ts';
 import { createPreviewProxy } from './server/infrastructure/proxy/preview-proxy.ts';
-import { processRegistry } from './server/infrastructure/process/process-registry.ts';
+import { runtimeManager } from './server/infrastructure/runtime/runtime-manager.ts';
 import previewPipeline from './server/preview/index.ts';
 import fileExplorerPipeline from './server/file-explorer/index.ts';
 import consolePipeline from './server/console/index.ts';
@@ -140,13 +140,13 @@ server.listen(PORT, '0.0.0.0', async () => {
   console.log(`[nura-x] API server running on port ${PORT}`);
   console.log(`[nura-x] Environment: ${process.env.NODE_ENV || 'development'}`);
   // Load persisted runtime state, reconcile against live PIDs, start health monitor
-  await processRegistry.init();
+  await runtimeManager.init();
 });
 
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`[nura-x] ${signal} received — graceful shutdown`);
   // Flush runtime state to disk and SIGKILL all children before exit
-  await processRegistry.shutdown();
+  await runtimeManager.shutdown();
   server.close(() => process.exit(0));
 }
 

@@ -2,14 +2,16 @@
  * runtime.routes.ts
  *
  * HTTP API for managing project runtimes.
- * ALL process state is read/written through ProcessRegistry.
- * No local Maps. No duplicate spawn logic.
+ *
+ * ALL process state is owned by runtimeManager — the single entry point
+ * for runtime operations. No local Maps, no spawn calls, no sandbox path
+ * resolution here.
  */
 
 import { Router, type Request, type Response } from "express";
 import { spawn } from "child_process";
-import { getProjectDir, ensureProjectDir } from "../infrastructure/sandbox/sandbox.util.ts";
-import { processRegistry } from "../infrastructure/process/process-registry.ts";
+import { getProjectDir } from "../infrastructure/sandbox/sandbox.util.ts";
+import { runtimeManager } from "../infrastructure/runtime/runtime-manager.ts";
 import { db } from "../infrastructure/db/index.ts";
 import { projects } from "../../shared/schema.ts";
 import { eq } from "drizzle-orm";
@@ -21,10 +23,7 @@ export function createRuntimeRouter(): Router {
   router.post("/api/runtime/:projectId/start", async (req: Request, res: Response) => {
     try {
       const projectId = Number(req.params.projectId);
-      await ensureProjectDir(projectId);
-      const cwd = getProjectDir(projectId);
-
-      const result = await processRegistry.start({ projectId, cwd });
+      const result = await runtimeManager.start(projectId);
       if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
 
       if (!result.alreadyRunning) {
@@ -52,11 +51,11 @@ export function createRuntimeRouter(): Router {
     try {
       const projectId = Number(req.params.projectId);
 
-      if (!processRegistry.isRunning(projectId)) {
+      if (!runtimeManager.isRunning(projectId)) {
         return res.json({ ok: true, message: "No running server", projectId });
       }
 
-      const result = processRegistry.stop(projectId);
+      const result = runtimeManager.stop(projectId);
       if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
 
       await db
@@ -75,10 +74,7 @@ export function createRuntimeRouter(): Router {
   router.post("/api/runtime/:projectId/restart", async (req: Request, res: Response) => {
     try {
       const projectId = Number(req.params.projectId);
-      await ensureProjectDir(projectId);
-      const cwd = getProjectDir(projectId);
-
-      const result = await processRegistry.restart({ projectId, cwd });
+      const result = await runtimeManager.restart(projectId);
       if (!result.ok) return res.status(500).json({ ok: false, error: result.error });
 
       res.json({ ok: true, restarted: true, port: result.port, pid: result.pid, projectId });
@@ -91,31 +87,31 @@ export function createRuntimeRouter(): Router {
   router.get("/api/runtime/:projectId/logs", (req: Request, res: Response) => {
     const projectId = Number(req.params.projectId);
     const tail = Number(req.query.tail) || 50;
-    const entry = processRegistry.get(projectId);
+    const entry = runtimeManager.get(projectId);
 
     if (!entry) return res.json({ ok: true, running: false, logs: [] });
 
     res.json({
       ok: true,
-      running: processRegistry.isRunning(projectId),
+      running: runtimeManager.isRunning(projectId),
       port: entry.port,
-      logs: processRegistry.getLogs(projectId, tail),
+      logs: runtimeManager.getLogs(projectId, tail),
     });
   });
 
   // ── Status ─────────────────────────────────────────────────────────────
   router.get("/api/runtime/:projectId/status", (req: Request, res: Response) => {
     const projectId = Number(req.params.projectId);
-    const entry = processRegistry.get(projectId);
+    const entry = runtimeManager.get(projectId);
 
     res.json({
       ok: true,
       projectId,
-      running: processRegistry.isRunning(projectId),
+      running: runtimeManager.isRunning(projectId),
       status: entry?.status ?? "stopped",
       port: entry?.port ?? null,
       pid: entry?.pid ?? null,
-      uptimeMs: entry ? Date.now() - entry.startedAt : null,
+      uptimeMs: entry?.uptimeMs ?? null,
     });
   });
 
@@ -188,11 +184,8 @@ export function createRuntimeRouter(): Router {
   // ── Screenshot / preview URL ───────────────────────────────────────────
   router.get("/api/runtime/:projectId/screenshot", (req: Request, res: Response) => {
     const projectId = Number(req.params.projectId);
-    const port = processRegistry.getPort(projectId);
-    const url = process.env.REPLIT_DEV_DOMAIN
-      ? `https://${process.env.REPLIT_DEV_DOMAIN}/preview/${projectId}/`
-      : `http://localhost:${port ?? "??"}`;
-
+    const port = runtimeManager.getPort(projectId);
+    const url = runtimeManager.previewUrl(projectId, port);
     res.json({ ok: true, url, port: port ?? null, running: !!port });
   });
 

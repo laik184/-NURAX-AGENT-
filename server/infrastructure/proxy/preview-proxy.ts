@@ -3,13 +3,14 @@
  *
  * HTTP proxy: /preview/:projectId/* → running project port.
  *
- * Port lookup reads ONLY from ProcessRegistry (single source of truth).
- * No local maps, no stale caches — always resolves the live port.
+ * Port lookup reads ONLY from runtimeManager (single source of truth).
+ * No local Maps, no stale caches — always resolves the live port.
+ * Automatically correct after server restarts via persisted state recovery.
  */
 
 import { Router, type Request, type Response, type NextFunction } from "express";
 import http from "http";
-import { processRegistry } from "../process/process-registry.ts";
+import { runtimeManager } from "../runtime/runtime-manager.ts";
 
 export function createPreviewProxy(): Router {
   const router = Router();
@@ -22,7 +23,7 @@ export function createPreviewProxy(): Router {
       return;
     }
 
-    const port = processRegistry.getPort(projectId);
+    const port = runtimeManager.getPort(projectId);
 
     if (!port) {
       res.status(503).json({
@@ -65,13 +66,13 @@ export function createPreviewProxy(): Router {
 }
 
 /**
- * Legacy shim — kept so any existing callers don't break.
- * ProcessRegistry is now the authority; these are no-ops / read-throughs.
+ * Legacy shims — kept so any existing callers don't break.
+ * runtimeManager is now the authority; these are read-throughs.
  */
 export function setProjectPort(_projectId: number, _port: number): void {
-  // No-op: ProcessRegistry owns all port state now.
+  // No-op: runtimeManager owns all port state.
 }
 
 export function getProjectPort(projectId: number): number | undefined {
-  return processRegistry.getPort(projectId);
+  return runtimeManager.getPort(projectId);
 }
