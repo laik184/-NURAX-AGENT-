@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { X, FileText, FolderPlus, Upload, Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useFileActions } from "./useFileActions";
+import { useFileActions } from "@/hooks/useFileActions";
 import { FileTree, FileItem } from "./FileTree";
 
 interface FilesModalProps {

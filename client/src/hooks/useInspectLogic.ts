@@ -1,5 +1,5 @@
 import { useState, useEffect, type RefObject } from "react";
-import type { ElementInfo } from "./DevToolsPanel";
+import type { ElementInfo } from "@/pages/preview/DevToolsPanel";
 
 export function useInspectLogic(iframeRef: RefObject<HTMLIFrameElement>) {
   const [inspectMode, setInspectMode] = useState(false);

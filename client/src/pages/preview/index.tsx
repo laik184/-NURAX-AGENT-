@@ -1,22 +1,22 @@
 import { useState, useRef } from "react";
 import { useAppState } from "@/context/app-state-context";
-import { GridPreviewPage } from "./grid-preview-page";
-import { GridAgentPage } from "./grid-agent-page";
-import { GridConsolePage } from "./grid-console-page";
-import { GridPublishingPage } from "./grid-publishing-page";
-import { FilesModal } from "./files-modal";
-import { URLSharingModal } from "./url-sharing-modal";
+import { GridPreviewPage } from "@/pages/grid/grid-preview-page";
+import { GridAgentPage } from "@/pages/grid/grid-agent-page";
+import { GridConsolePage } from "@/pages/grid/grid-console-page";
+import { GridPublishingPage } from "@/pages/grid/grid-publishing-page";
+import { FilesModal } from "@/components/modals/files-modal";
+import { URLSharingModal } from "@/components/modals/url-sharing-modal";
 import { DevToolsPanel, ProcessingPulse } from "./PreviewPanel";
-import { usePreviewCapture } from "./usePreviewCapture";
+import { usePreviewCapture } from "@/hooks/usePreviewCapture";
 import { BrowserBar } from "./BrowserBar";
 import { PreviewHeader } from "./PreviewHeader";
 import { ErrorPanel } from "./ErrorPanel";
-import { GridToolbar } from "./GridToolbar";
+import { GridToolbar } from "@/pages/grid/GridToolbar";
 import { IframeView } from "./IframeView";
-import { useDeviceLogic } from "./useDeviceLogic";
-import { useNavigationLogic } from "./useNavigationLogic";
-import { useDevToolsLogic } from "./useDevToolsLogic";
-import { useInspectLogic } from "./useInspectLogic";
+import { useDeviceLogic } from "@/hooks/useDeviceLogic";
+import { useNavigationLogic } from "@/hooks/useNavigationLogic";
+import { useDevToolsLogic } from "@/hooks/useDevToolsLogic";
+import { useInspectLogic } from "@/hooks/useInspectLogic";
 import "./preview-animations.css";
 
 export default function Preview() {

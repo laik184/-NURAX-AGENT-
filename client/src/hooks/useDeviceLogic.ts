@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { DEVICE_CONFIGS, type DeviceKey, type DeviceType } from "./preview-types";
+import { DEVICE_CONFIGS, type DeviceKey, type DeviceType } from "@/pages/preview/preview-types";
 
 export function useDeviceLogic() {
   const [selectedDevice, setSelectedDevice] = useState<DeviceKey>("fullsize");

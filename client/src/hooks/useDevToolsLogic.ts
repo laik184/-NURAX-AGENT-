@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import type { DevToolsTab } from "./preview-types";
+import type { DevToolsTab } from "@/pages/preview/preview-types";
 
 interface UseDevToolsLogicArgs {
   networkMode: "normal" | "slow" | "offline";
