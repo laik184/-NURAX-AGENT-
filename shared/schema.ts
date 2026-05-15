@@ -1,5 +1,5 @@
 import {
-  pgTable, serial, varchar, text, timestamp, jsonb, integer,
+  pgTable, serial, varchar, text, timestamp, jsonb, integer, boolean,
 } from "drizzle-orm/pg-core";
 
 export const projects = pgTable("projects", {
@@ -83,6 +83,57 @@ export const consoleLogs = pgTable("console_logs", {
   ts:        timestamp("ts", { withTimezone: true }).defaultNow(),
 });
 
+export const deployments = pgTable("deployments", {
+  id:          serial("id").primaryKey(),
+  projectId:   integer("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  status:      varchar("status", { length: 32 }).default("idle").notNull(),
+  url:         text("url"),
+  region:      varchar("region", { length: 64 }).default("us-east-1").notNull(),
+  environment: varchar("environment", { length: 32 }).default("production").notNull(),
+  steps:       jsonb("steps").default([]).notNull(),
+  error:       text("error"),
+  startedAt:   timestamp("started_at", { withTimezone: true }).defaultNow(),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+export const deploymentDomains = pgTable("deployment_domains", {
+  id:        serial("id").primaryKey(),
+  projectId: integer("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  name:      varchar("name", { length: 255 }).notNull(),
+  status:    varchar("status", { length: 32 }).default("pending").notNull(),
+  addedAt:   timestamp("added_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const deploymentSecrets = pgTable("deployment_secrets", {
+  id:             serial("id").primaryKey(),
+  projectId:      integer("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  key:            varchar("key", { length: 255 }).notNull(),
+  encryptedValue: text("encrypted_value").notNull(),
+  createdAt:      timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt:      timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const deploymentSettings = pgTable("deployment_settings", {
+  id:          serial("id").primaryKey(),
+  projectId:   integer("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  appName:     varchar("app_name", { length: 255 }).default("my-app").notNull(),
+  environment: varchar("environment", { length: 32 }).default("production").notNull(),
+  region:      varchar("region", { length: 64 }).default("us-east-1").notNull(),
+  isPublic:    boolean("is_public").default(true).notNull(),
+  dbUrl:       text("db_url"),
+  updatedAt:   timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const deploymentAuthConfig = pgTable("deployment_auth_config", {
+  id:                serial("id").primaryKey(),
+  projectId:         integer("project_id").references(() => projects.id, { onDelete: "cascade" }).notNull(),
+  providers:         jsonb("providers").default([]).notNull(),
+  requireEmailVerif: boolean("require_email_verif").default(true).notNull(),
+  sessionExpiry:     varchar("session_expiry", { length: 16 }).default("7d").notNull(),
+  updatedAt:         timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export type Project          = typeof projects.$inferSelect;
 export type InsertProject    = typeof projects.$inferInsert;
 export type ChatMessage      = typeof chatMessages.$inferSelect;
@@ -99,6 +150,12 @@ export type DiffQueueItem    = typeof diffQueue.$inferSelect;
 export type InsertDiffQueueItem = typeof diffQueue.$inferInsert;
 export type ConsoleLog       = typeof consoleLogs.$inferSelect;
 export type InsertConsoleLog = typeof consoleLogs.$inferInsert;
+export type Deployment       = typeof deployments.$inferSelect;
+export type InsertDeployment = typeof deployments.$inferInsert;
+export type DeploymentDomain = typeof deploymentDomains.$inferSelect;
+export type DeploymentSecret = typeof deploymentSecrets.$inferSelect;
+export type DeploymentSettings = typeof deploymentSettings.$inferSelect;
+export type DeploymentAuthConfig = typeof deploymentAuthConfig.$inferSelect;
 
 export interface Folder {
   id: number;
