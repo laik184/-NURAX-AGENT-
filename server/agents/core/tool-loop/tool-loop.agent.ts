@@ -2,190 +2,249 @@
  * tool-loop.agent.ts
  *
  * THE LLM TOOL-USE AGENT.
- * Lives in server/agents/core/tool-loop/ — this is the only file in server/chat/
- * that was calling the LLM directly, so it has been moved here.
  *
  * Calls OpenRouter (llm.chatWithTools) in a step-by-step loop,
  * invoking sandbox tools until task_complete is called or max steps reached.
+ *
+ * ── Verification gate ──────────────────────────────────────────────────────
+ * When the LLM calls task_complete, the loop does NOT immediately return
+ * success. Instead it runs the verification engine:
+ *
+ *   1. Check runtime process + logs
+ *   2. Check TypeScript errors
+ *   3. Check package install failures
+ *   4. Check preview HTTP reachability
+ *
+ * If all checks pass → accept task_complete → return success.
+ * If any check fails → replace the task_complete tool result in message
+ *   history with { ok: false, issues: [...] } so the LLM sees the failure
+ *   and must self-heal before calling task_complete again.
+ * After MAX_VERIFICATION_RETRIES failed attempts → allow completion with
+ *   a warning so the run does not loop indefinitely.
  */
 
-import { llm, type ToolMessage } from "../../../llm/openrouter.client.ts";
-import { TOOLS, TOOL_DEFS, TERMINAL_TOOL_NAMES, type ToolContext, toolOrchestrator } from "../../../tools/orchestrator.ts";
-import { bus } from "../../../infrastructure/events/bus.ts";
-import { buildSystemPrompt } from "../llm/prompt-builder/agents/system-prompt.agent.js";
-import { TOOL_REFERENCE } from "./tool-reference.ts";
-import { withRetry } from "./retry.ts";
+import { llm, type ToolMessage }    from "../../../llm/openrouter.client.ts";
+import {
+  TOOLS, TOOL_DEFS, TERMINAL_TOOL_NAMES,
+  type ToolContext, toolOrchestrator,
+}                                    from "../../../tools/orchestrator.ts";
+import { bus }                       from "../../../infrastructure/events/bus.ts";
+import { buildSystemPrompt }         from "../llm/prompt-builder/agents/system-prompt.agent.js";
+import { TOOL_REFERENCE }            from "./tool-reference.ts";
+import { withRetry }                 from "./retry.ts";
+import {
+  runVerificationEngine,
+  buildVerificationFeedback,
+  buildExhaustedFeedback,
+  getOrCreateRetryController,
+  releaseRetryController,
+  emitVerificationStarted,
+  emitVerificationPassed,
+  emitVerificationFailed,
+  emitVerificationExhausted,
+}                                    from "../../../verification/index.ts";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AgentLoopInput {
-  readonly projectId: number;
-  readonly runId: string;
-  readonly goal: string;
-  readonly maxSteps?: number;
-  readonly signal?: AbortSignal;
-  readonly systemPrompt?: string;
-  /** Pre-built message history supplied by the continuation manager on continuation runs. */
+  readonly projectId:      number;
+  readonly runId:          string;
+  readonly goal:           string;
+  readonly maxSteps?:      number;
+  readonly signal?:        AbortSignal;
+  readonly systemPrompt?:  string;
   readonly initialMessages?: ToolMessage[];
+  /** Disable verification gate (e.g. recovery runs that just restart a server). */
+  readonly skipVerification?: boolean;
 }
 
 export interface AgentLoopResult {
-  readonly success: boolean;
-  readonly steps: number;
-  readonly summary: string;
+  readonly success:    boolean;
+  readonly steps:      number;
+  readonly summary:    string;
   readonly stopReason: "complete" | "max_steps" | "no_tool_calls" | "error" | "aborted";
-  readonly error?: string;
-  /** Full accumulated message history — only set on stopReason === "max_steps" for the continuation manager. */
-  readonly messages?: ToolMessage[];
+  readonly error?:     string;
+  readonly messages?:  ToolMessage[];
 }
+
+// ─── Agent loop ───────────────────────────────────────────────────────────────
 
 export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResult> {
   const maxSteps = input.maxSteps ?? 25;
   const resolvedSystemPrompt = buildSystemPrompt(input.systemPrompt) + "\n\n" + TOOL_REFERENCE;
   const messages: ToolMessage[] = input.initialMessages ?? [
     { role: "system", content: resolvedSystemPrompt },
-    { role: "user", content: `Project ID: ${input.projectId}\nGoal:\n${input.goal}` },
+    { role: "user",   content: `Project ID: ${input.projectId}\nGoal:\n${input.goal}` },
   ];
 
   const ctx: ToolContext = {
     projectId: input.projectId,
-    runId: input.runId,
-    signal: input.signal,
+    runId:     input.runId,
+    signal:    input.signal,
   };
 
-  emit(input.runId, "agent.thinking", "tool-loop", { text: `Starting agent loop for: ${input.goal.slice(0, 200)}` });
+  // One retry controller per run — tracks verification attempt count
+  const retryCtrl = input.skipVerification
+    ? null
+    : getOrCreateRetryController(input.runId);
 
-  let steps = 0;
+  emit(input.runId, "agent.thinking", "tool-loop", {
+    text: `Starting agent loop for: ${input.goal.slice(0, 200)}`,
+  });
+
+  let steps       = 0;
   let lastSummary = "";
 
-  while (steps < maxSteps) {
-    if (input.signal?.aborted) {
-      return { success: false, steps, summary: "Aborted by user.", stopReason: "aborted" };
-    }
-    steps++;
-    emit(input.runId, "agent.thinking", "tool-loop", { step: steps, text: `Step ${steps}: thinking…` });
+  try {
+    while (steps < maxSteps) {
+      if (input.signal?.aborted) {
+        return { success: false, steps, summary: "Aborted by user.", stopReason: "aborted" };
+      }
 
-    let response: Awaited<ReturnType<typeof llm.chatWithTools>>;
-    try {
-      response = await withRetry(
-        () => llm.chatWithTools(messages, [...TOOL_DEFS], { signal: input.signal }),
-        { maxAttempts: 3, runId: input.runId, operationName: "llm.chatWithTools", signal: input.signal }
-      );
-    } catch (e: any) {
-      const msg = e?.message || String(e);
-      emit(input.runId, "agent.message", "error", { text: `LLM error (all retries exhausted): ${msg}` });
-      return { success: false, steps, summary: msg, stopReason: "error", error: msg };
-    }
+      steps++;
+      emit(input.runId, "agent.thinking", "tool-loop", { step: steps, text: `Step ${steps}: thinking…` });
 
-    if (response.content && response.content.trim()) {
-      emit(input.runId, "agent.message", "tool-loop", { text: response.content });
-    }
-
-    if (response.toolCalls.length === 0) {
-      const summary = response.content?.trim() || lastSummary || "Done.";
-      emit(input.runId, "agent.message", "complete", { text: summary });
-      return { success: true, steps, summary, stopReason: "no_tool_calls" };
-    }
-
-    messages.push({
-      role: "assistant",
-      content: response.content || "",
-      tool_calls: response.toolCalls.map((tc) => ({
-        id: tc.id,
-        type: "function" as const,
-        function: { name: tc.name, arguments: tc.arguments },
-      })),
-    });
-
-    let saw_complete = false;
-
-    for (const call of response.toolCalls) {
-      let parsedArgs: Record<string, unknown> = {};
+      // ── LLM call with retry ──────────────────────────────────────────────
+      let response: Awaited<ReturnType<typeof llm.chatWithTools>>;
       try {
-        parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
-      } catch {
-        const err = `Tool ${call.name}: invalid JSON arguments`;
-        emit(input.runId, "agent.tool_call", "tool-loop", { tool: call.name, status: "error", error: err });
-        messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: false, error: err }) });
-        continue;
+        response = await withRetry(
+          () => llm.chatWithTools(messages, [...TOOL_DEFS], { signal: input.signal }),
+          { maxAttempts: 3, runId: input.runId, operationName: "llm.chatWithTools", signal: input.signal },
+        );
+      } catch (e: any) {
+        const msg = e?.message || String(e);
+        emit(input.runId, "agent.message", "error", { text: `LLM error (all retries exhausted): ${msg}` });
+        return { success: false, steps, summary: msg, stopReason: "error", error: msg };
       }
 
-      if (!toolOrchestrator.has(call.name)) {
-        const err = `Unknown tool: ${call.name}`;
-        emit(input.runId, "agent.tool_call", "tool-loop", { tool: call.name, status: "error", error: err });
-        messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: false, error: err }) });
-        continue;
+      if (response.content?.trim()) {
+        emit(input.runId, "agent.message", "tool-loop", { text: response.content });
       }
 
-      // Delegate full execution lifecycle to ToolOrchestrator:
-      // validation → timeout → event emission → metrics → result
-      const exec = await toolOrchestrator.execute(call.name, parsedArgs, ctx);
+      if (response.toolCalls.length === 0) {
+        const summary = response.content?.trim() || lastSummary || "Done.";
+        emit(input.runId, "agent.message", "complete", { text: summary });
+        return { success: true, steps, summary, stopReason: "no_tool_calls" };
+      }
 
-      const resultJson = JSON.stringify(exec);
-      const trimmed = resultJson.length > 10_000
-        ? resultJson.slice(0, 5000) + " ... [truncated] ... " + resultJson.slice(-2000)
-        : resultJson;
-      messages.push({ role: "tool", tool_call_id: call.id, content: trimmed });
+      messages.push({
+        role: "assistant",
+        content: response.content || "",
+        tool_calls: response.toolCalls.map((tc) => ({
+          id:       tc.id,
+          type:     "function" as const,
+          function: { name: tc.name, arguments: tc.arguments },
+        })),
+      });
 
-      if (TERMINAL_TOOL_NAMES.has(call.name) && exec.ok) {
-        saw_complete = true;
-        const summary = (parsedArgs.summary as string) || "Task complete.";
-        lastSummary = summary;
+      let saw_complete = false;
+
+      // ── Tool call loop ───────────────────────────────────────────────────
+      for (const call of response.toolCalls) {
+        let parsedArgs: Record<string, unknown> = {};
+        try {
+          parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
+        } catch {
+          const err = `Tool ${call.name}: invalid JSON arguments`;
+          emit(input.runId, "agent.tool_call", "tool-loop", { tool: call.name, status: "error", error: err });
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: false, error: err }) });
+          continue;
+        }
+
+        if (!toolOrchestrator.has(call.name)) {
+          const err = `Unknown tool: ${call.name}`;
+          emit(input.runId, "agent.tool_call", "tool-loop", { tool: call.name, status: "error", error: err });
+          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: false, error: err }) });
+          continue;
+        }
+
+        const exec     = await toolOrchestrator.execute(call.name, parsedArgs, ctx);
+        const resultJson = JSON.stringify(exec);
+        const trimmed  = resultJson.length > 10_000
+          ? resultJson.slice(0, 5000) + " ... [truncated] ... " + resultJson.slice(-2000)
+          : resultJson;
+
+        messages.push({ role: "tool", tool_call_id: call.id, content: trimmed });
+
+        // ── Verification gate — only on task_complete ──────────────────────
+        if (TERMINAL_TOOL_NAMES.has(call.name) && exec.ok) {
+          const summary = (parsedArgs.summary as string) || "Task complete.";
+
+          if (!retryCtrl) {
+            // Verification skipped (recovery runs, etc.)
+            saw_complete = true;
+            lastSummary  = summary;
+            continue;
+          }
+
+          emitVerificationStarted(input.projectId, input.runId);
+          const report = await runVerificationEngine(input.projectId, input.runId);
+
+          if (report.passed) {
+            // ✅ All checks passed — accept completion
+            emitVerificationPassed(report);
+            saw_complete = true;
+            lastSummary  = summary;
+          } else if (retryCtrl.exhausted) {
+            // ⚠️ Max retries reached — complete with warning to avoid infinite loop
+            emitVerificationExhausted(input.projectId, input.runId, retryCtrl.maxRetries);
+            const exhaustedContent = buildExhaustedFeedback(report, retryCtrl.maxRetries);
+            // Replace last tool message with exhausted feedback
+            messages[messages.length - 1] = {
+              role: "tool",
+              tool_call_id: call.id,
+              content: exhaustedContent,
+            };
+            saw_complete = true;
+            lastSummary  = `${summary} (completed with verification warnings — see issues)`;
+          } else {
+            // ❌ Verification failed — inject failure back so LLM self-heals
+            const attempt  = retryCtrl.recordAttempt();
+            emitVerificationFailed(report, attempt);
+            const failContent = buildVerificationFeedback(report, attempt, retryCtrl.maxRetries);
+            // Replace last tool message: task_complete appears as "failed"
+            messages[messages.length - 1] = {
+              role: "tool",
+              tool_call_id: call.id,
+              content: failContent,
+            };
+            // saw_complete stays false → loop continues → LLM must fix issues
+          }
+        }
+      }
+
+      if (saw_complete) {
+        return { success: true, steps, summary: lastSummary, stopReason: "complete" };
       }
     }
 
-    if (saw_complete) {
-      return { success: true, steps, summary: lastSummary, stopReason: "complete" };
-    }
+    return {
+      success:    false,
+      steps,
+      summary:    `Reached step limit of ${maxSteps} without completing.`,
+      stopReason: "max_steps",
+      messages,
+    };
+
+  } finally {
+    // Always release per-run retry state to avoid memory leak
+    releaseRetryController(input.runId);
   }
-
-  return {
-    success: false,
-    steps,
-    summary: `Reached step limit of ${maxSteps} without completing.`,
-    stopReason: "max_steps",
-    messages,
-  };
 }
+
+// ─── Emit helper ──────────────────────────────────────────────────────────────
 
 function emit(runId: string, eventType: string, phase: string, payload: unknown): void {
   bus.emit("agent.event", {
     runId,
     eventType: eventType as any,
     phase,
-    ts: Date.now(),
+    ts:      Date.now(),
     payload,
   });
 }
 
-function summariseArgs(tool: string, args: Record<string, unknown>): unknown {
-  if (tool === "file_write" && typeof args.content === "string") return { path: args.path, bytes: (args.content as string).length };
-  if (tool === "file_replace") return { path: args.path, old_bytes: (args.old_string as string)?.length, new_bytes: (args.new_string as string)?.length };
-  if (tool === "file_read" || tool === "file_delete" || tool === "file_list") return { path: args.path };
-  if (tool === "file_search") return { pattern: args.pattern, path: args.path, glob: args.glob };
-  if (tool === "shell_exec") return { command: args.command, args: args.args };
-  if (tool === "package_install") return { packages: args.packages, dev: args.dev };
-  if (tool === "env_write") return { key: args.key, path: args.path };
-  if (tool === "git_commit") return { message: args.message };
-  if (tool === "git_add") return { paths: args.paths ?? "all" };
-  return args;
-}
-
-function summariseResult(tool: string, exec: { ok: boolean; result?: unknown; error?: string }): unknown {
-  if (!exec.ok) return { error: exec.error?.slice(0, 200) };
-  if (tool === "file_read" && exec.result && typeof exec.result === "object") { const r = exec.result as { path?: string; content?: string }; return { path: r.path, bytes: r.content?.length ?? 0 }; }
-  if (tool === "file_list") return { ok: true };
-  if (tool === "file_search" && exec.result && typeof exec.result === "object") { const r = exec.result as { count?: number; truncated?: boolean }; return { count: r.count, truncated: r.truncated }; }
-  if (tool === "file_replace" && exec.result && typeof exec.result === "object") { const r = exec.result as { path?: string; replacements?: number }; return { path: r.path, replacements: r.replacements }; }
-  if (tool === "shell_exec" && exec.result && typeof exec.result === "object") { const r = exec.result as { exitCode?: number }; return { exitCode: r.exitCode }; }
-  if (tool === "server_start" || tool === "server_restart" || tool === "preview_url") return exec.result;
-  if (tool === "server_logs" && exec.result && typeof exec.result === "object") { const r = exec.result as { lines?: string[]; status?: string }; return { status: r.status, lineCount: r.lines?.length ?? 0 }; }
-  if (tool === "detect_missing_packages") return exec.result;
-  if (tool === "package_install" && exec.result && typeof exec.result === "object") { const r = exec.result as { installed?: string[]; exitCode?: number }; return { installed: r.installed, exitCode: r.exitCode }; }
-  if (tool === "env_read" && exec.result && typeof exec.result === "object") { const r = exec.result as { count?: number; path?: string }; return { path: r.path, count: r.count }; }
-  if (tool === "env_write" || tool === "git_status" || tool === "git_add" || tool === "git_commit") return exec.result;
-  return { ok: true };
-}
+// ─── Re-exports ───────────────────────────────────────────────────────────────
 
 export const TOOL_NAMES = TOOLS.map((t) => t.name);
-
-// Re-export orchestrator for consumers that need direct access
 export { toolOrchestrator };
