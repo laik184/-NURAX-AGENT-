@@ -14,3 +14,5 @@ export type { AgentLoopInput, AgentLoopResult } from "./tool-loop.agent.ts";
 export { TOOL_REFERENCE } from "./tool-reference.ts";
 export { runAgentLoopWithContinuation } from "./continuation/continuation-manager.ts";
 export type { ContinuationOptions } from "./continuation/continuation-manager.ts";
+export { withRetry } from "./retry.ts";
+export type { RetryOptions } from "./retry.ts";

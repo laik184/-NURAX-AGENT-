@@ -14,6 +14,7 @@ import { TOOLS, TOOL_DEFS, TERMINAL_TOOL_NAMES, type ToolContext, toolOrchestrat
 import { bus } from "../../../infrastructure/events/bus.ts";
 import { buildSystemPrompt } from "../llm/prompt-builder/agents/system-prompt.agent.js";
 import { TOOL_REFERENCE } from "./tool-reference.ts";
+import { withRetry } from "./retry.ts";
 
 export interface AgentLoopInput {
   readonly projectId: number;
@@ -64,10 +65,13 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResu
 
     let response: Awaited<ReturnType<typeof llm.chatWithTools>>;
     try {
-      response = await llm.chatWithTools(messages, [...TOOL_DEFS], { signal: input.signal });
+      response = await withRetry(
+        () => llm.chatWithTools(messages, [...TOOL_DEFS], { signal: input.signal }),
+        { maxAttempts: 3, runId: input.runId, operationName: "llm.chatWithTools", signal: input.signal }
+      );
     } catch (e: any) {
       const msg = e?.message || String(e);
-      emit(input.runId, "agent.message", "error", { text: `LLM error: ${msg}` });
+      emit(input.runId, "agent.message", "error", { text: `LLM error (all retries exhausted): ${msg}` });
       return { success: false, steps, summary: msg, stopReason: "error", error: msg };
     }
 

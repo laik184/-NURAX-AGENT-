@@ -106,6 +106,12 @@ export function useAgentRunner() {
             setIsAgentThinking(true);
             setActiveAction({ type: "action", tool: "analysis.think", content: e.payload?.text || `Thinking${e.agentName ? ` (${e.agentName})` : ""}…`, status: "running" });
             break;
+          case "agent.retry": {
+            const { attempt, maxAttempts, delayMs, error, operation } = e.payload ?? {};
+            const delayLabel = delayMs >= 1000 ? `${(delayMs / 1000).toFixed(1)}s` : `${delayMs}ms`;
+            setActiveAction({ type: "action", tool: "agent.retry", content: `Retrying ${operation || "request"} (attempt ${attempt}/${maxAttempts}) in ${delayLabel} — ${(error || "").slice(0, 80)}`, status: "running" });
+            break;
+          }
           case "agent.replanning": {
             const { text, continuationCount, maxContinuations, limitReached } = e.payload ?? {};
             setIsAgentThinking(true);
