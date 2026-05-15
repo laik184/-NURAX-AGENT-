@@ -19,8 +19,10 @@ import { createLegacyAliasRouter } from './server/api/legacy-aliases.routes.ts';
 import { createCompatRouter } from './server/api/compat.routes.ts';
 import { createRuntimeRouter } from './server/api/runtime.routes.ts';
 import { createPreviewProxy } from './server/infrastructure/proxy/preview-proxy.ts';
-import { runtimeManager } from './server/infrastructure/runtime/runtime-manager.ts';
-import { crashResponder } from './server/agents/recovery/crash-responder.ts';
+import { runtimeManager }          from './server/infrastructure/runtime/runtime-manager.ts';
+import { crashResponder }           from './server/agents/recovery/crash-responder.ts';
+import { observationController }    from './server/runtime/index.ts';
+import { createObservationRouter }  from './server/api/observation.routes.ts';
 import previewPipeline from './server/preview/index.ts';
 import fileExplorerPipeline from './server/file-explorer/index.ts';
 import consolePipeline from './server/console/index.ts';
@@ -56,6 +58,7 @@ app.use('/api/artifacts', createArtifactsRouter());
 app.use('/api/publishing', createPublishingRouter());
 app.use('/api/folders', createFoldersRouter());
 app.use('/api/inventory', createInventoryRouter());
+app.use('/api/observation', createObservationRouter());
 app.use('/api/chat', chatOrchestrator.buildChatRouter());
 
 // Real runtime endpoints (project run/stop/restart, packages, git, screenshot)
@@ -144,10 +147,13 @@ server.listen(PORT, '0.0.0.0', async () => {
   await runtimeManager.init();
   // Start autonomous crash recovery — subscribes to process.crashed bus events
   crashResponder.start();
+  // Start runtime observation — watches logs + probes ports for all project servers
+  observationController.start();
 });
 
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`[nura-x] ${signal} received — graceful shutdown`);
+  observationController.stop();
   crashResponder.stop();
   // Flush runtime state to disk and SIGKILL all children before exit
   await runtimeManager.shutdown();

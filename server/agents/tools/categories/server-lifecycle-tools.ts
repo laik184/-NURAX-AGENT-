@@ -6,14 +6,25 @@
  *
  * ALL process operations delegate to runtimeManager — the single
  * source of truth. No local Maps, no spawn calls, no path resolution here.
+ *
+ * server_start and server_restart now run a post-start verification:
+ * the startup verifier watches logs + probes the port for up to 10 s
+ * and returns a rich, LLM-ready health summary instead of a blind "started".
  */
 
-import { runtimeManager } from "../../../infrastructure/runtime/runtime-manager.ts";
+import { runtimeManager }       from "../../../infrastructure/runtime/runtime-manager.ts";
+import { verifyStartup }         from "../../../runtime/verification/startup-verifier.ts";
+import { emitVerificationResult } from "../../../runtime/feedback/feedback-emitter.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
+
+// ─── server_start ─────────────────────────────────────────────────────────────
 
 export const serverStart: Tool = {
   name: "server_start",
-  description: "Start the project dev server. Runs `npm run dev` in the project sandbox directory.",
+  description:
+    "Start the project dev server. Runs `npm run dev` in the project sandbox " +
+    "directory and automatically verifies startup (log scan + port probe). " +
+    "Returns a health verdict so you know whether to proceed or diagnose.",
   parameters: { type: "object", properties: {} },
 
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
@@ -28,26 +39,34 @@ export const serverStart: Tool = {
         ok: true,
         result: {
           already_running: true,
-          port: result.port,
+          port:    result.port,
           message: `Server already running on port ${result.port}.`,
         },
       };
     }
 
-    // Brief grace period so the server can bind its port
-    await new Promise((r) => setTimeout(r, 2000));
+    // ── Post-start observation: watch logs + probe port ──────────────────────
+    const verification = await verifyStartup(ctx.projectId, result.port!);
+    emitVerificationResult(verification);
+
+    const healthy = verification.outcome === "healthy" || verification.outcome === "degraded";
 
     return {
-      ok: true,
+      ok: healthy,
       result: {
-        started: true,
-        port: result.port,
-        pid: result.pid,
-        message: `Dev server started on port ${result.port}. Use server_logs to check startup output.`,
+        started:      true,
+        port:         result.port,
+        pid:          result.pid,
+        health:       verification.outcome,
+        portProbe:    { reachable: verification.probe.reachable, latencyMs: verification.probe.latencyMs },
+        message:      verification.llmSummary,
+        logsSnapshot: verification.analysis.errors.slice(0, 3).map(e => e.line),
       },
     };
   },
 };
+
+// ─── server_stop ──────────────────────────────────────────────────────────────
 
 export const serverStop: Tool = {
   name: "server_stop",
@@ -64,9 +83,13 @@ export const serverStop: Tool = {
   },
 };
 
+// ─── server_restart ───────────────────────────────────────────────────────────
+
 export const serverRestart: Tool = {
   name: "server_restart",
-  description: "Restart the project dev server.",
+  description:
+    "Restart the project dev server. Automatically verifies the server " +
+    "comes back up (log scan + port probe) and returns a health verdict.",
   parameters: { type: "object", properties: {} },
 
   async run(_args, ctx: ToolContext): Promise<ToolResult> {
@@ -74,19 +97,28 @@ export const serverRestart: Tool = {
 
     if (!result.ok) return { ok: false, error: result.error };
 
-    await new Promise((r) => setTimeout(r, 2000));
+    // ── Post-restart observation ─────────────────────────────────────────────
+    const verification = await verifyStartup(ctx.projectId, result.port!);
+    emitVerificationResult(verification);
+
+    const healthy = verification.outcome === "healthy" || verification.outcome === "degraded";
 
     return {
-      ok: true,
+      ok: healthy,
       result: {
-        restarted: true,
-        port: result.port,
-        pid: result.pid,
-        message: `Server restarted on port ${result.port}.`,
+        restarted:    true,
+        port:         result.port,
+        pid:          result.pid,
+        health:       verification.outcome,
+        portProbe:    { reachable: verification.probe.reachable, latencyMs: verification.probe.latencyMs },
+        message:      verification.llmSummary,
+        logsSnapshot: verification.analysis.errors.slice(0, 3).map(e => e.line),
       },
     };
   },
 };
+
+// ─── server_logs ──────────────────────────────────────────────────────────────
 
 export const serverLogs: Tool = {
   name: "server_logs",
@@ -107,10 +139,10 @@ export const serverLogs: Tool = {
     return {
       ok: true,
       result: {
-        status: entry.status,
-        port: entry.port,
-        pid: entry.pid,
-        lines: runtimeManager.getLogs(ctx.projectId, tail),
+        status:   entry.status,
+        port:     entry.port,
+        pid:      entry.pid,
+        lines:    runtimeManager.getLogs(ctx.projectId, tail),
         uptimeMs: entry.uptimeMs,
       },
     };

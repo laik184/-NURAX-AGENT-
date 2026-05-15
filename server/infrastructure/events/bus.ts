@@ -31,11 +31,34 @@ export interface FileChangeEvent {
   ts: number;
 }
 
+export interface RuntimeVerifiedEvent {
+  projectId:  number;
+  outcome:    string;
+  port?:      number;
+  summary:    string;
+  analysis:   unknown;
+  probe:      unknown;
+  elapsedMs:  number;
+  ts:         number;
+}
+
+export interface RuntimeObservationEvent {
+  projectId:    number;
+  status:       string;
+  errorCount:   number;
+  recentErrors: string[];
+  uptimeMs:     number;
+  port?:        number;
+  ts:           number;
+}
+
 type BusEvents = {
-  "agent.event": (event: AgentEvent) => void;
-  "run.lifecycle": (event: RunLifecycleEvent) => void;
-  "console.log": (event: ConsoleLogEvent) => void;
-  "file.change": (event: FileChangeEvent) => void;
+  "agent.event":         (event: AgentEvent) => void;
+  "run.lifecycle":       (event: RunLifecycleEvent) => void;
+  "console.log":         (event: ConsoleLogEvent) => void;
+  "file.change":         (event: FileChangeEvent) => void;
+  "runtime.verified":    (event: RuntimeVerifiedEvent) => void;
+  "runtime.observation": (event: RuntimeObservationEvent) => void;
 };
 
 class TypedEventEmitter extends EventEmitter {

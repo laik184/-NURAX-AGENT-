@@ -91,25 +91,55 @@ export function createSseRouter(): Router {
     onClose(req, startHeartbeat(res), off);
   });
 
-  // ── Preview panel stream (console + lifecycle) ────────────────────────────────
+  // ── Preview panel stream (console + lifecycle + runtime health) ──────────────
   // Used by: PreviewView, DevToolsPanel
   r.get("/sse/preview", (req: Request, res: Response) => {
     setupSse(res);
-    const off1 = bus.subscribe("console.log",  (e) => sseSend(res, "preview", e));
+    const projectIdFilter = req.query.projectId ? Number(req.query.projectId) : null;
+    const off1 = bus.subscribe("console.log",  (e) => {
+      if (projectIdFilter !== null && e.projectId !== projectIdFilter) return;
+      sseSend(res, "preview", e);
+    });
     const off2 = bus.subscribe("run.lifecycle", (e) => sseSend(res, "preview", e));
+    const off3 = bus.subscribe("runtime.verified", (e) => {
+      if (projectIdFilter !== null && e.projectId !== projectIdFilter) return;
+      sseSend(res, "runtime.verified", e);
+    });
+    const off4 = bus.subscribe("runtime.observation", (e) => {
+      if (projectIdFilter !== null && e.projectId !== projectIdFilter) return;
+      sseSend(res, "runtime.observation", e);
+    });
+    onClose(req, startHeartbeat(res), off1, off2, off3, off4);
+  });
+
+  // ── Runtime health stream (verified + observation, projectId-scoped) ─────────
+  // Used by: Preview panel health indicator, agent dashboard
+  r.get("/sse/runtime", (req: Request, res: Response) => {
+    setupSse(res);
+    const projectIdFilter = req.query.projectId ? Number(req.query.projectId) : null;
+    const off1 = bus.subscribe("runtime.verified", (e) => {
+      if (projectIdFilter !== null && e.projectId !== projectIdFilter) return;
+      sseSend(res, "runtime.verified", e);
+    });
+    const off2 = bus.subscribe("runtime.observation", (e) => {
+      if (projectIdFilter !== null && e.projectId !== projectIdFilter) return;
+      sseSend(res, "runtime.observation", e);
+    });
     onClose(req, startHeartbeat(res), off1, off2);
   });
 
-  // ── Global event firehose (all four bus events) ───────────────────────────────
+  // ── Global event firehose (all bus events including runtime observation) ──────
   // Used by: connectSSE() in client/src/sse.ts (Dashboard, etc.)
   // Each event type sent under the single "event" name.
   r.get("/events", (req: Request, res: Response) => {
     setupSse(res);
-    const off1 = bus.subscribe("agent.event",  (e) => sseSend(res, "event", e));
-    const off2 = bus.subscribe("console.log",  (e) => sseSend(res, "event", e));
-    const off3 = bus.subscribe("file.change",  (e) => sseSend(res, "event", e));
-    const off4 = bus.subscribe("run.lifecycle", (e) => sseSend(res, "event", e));
-    onClose(req, startHeartbeat(res), off1, off2, off3, off4);
+    const off1 = bus.subscribe("agent.event",         (e) => sseSend(res, "event", e));
+    const off2 = bus.subscribe("console.log",         (e) => sseSend(res, "event", e));
+    const off3 = bus.subscribe("file.change",         (e) => sseSend(res, "event", e));
+    const off4 = bus.subscribe("run.lifecycle",       (e) => sseSend(res, "event", e));
+    const off5 = bus.subscribe("runtime.verified",    (e) => sseSend(res, "event", e));
+    const off6 = bus.subscribe("runtime.observation", (e) => sseSend(res, "event", e));
+    onClose(req, startHeartbeat(res), off1, off2, off3, off4, off5, off6);
   });
 
   // ── Solopilot dashboard stream (agent + lifecycle) ────────────────────────────
