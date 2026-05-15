@@ -56,6 +56,12 @@ export interface AgentLoopInput {
   readonly initialMessages?: ToolMessage[];
   /** Disable verification gate (e.g. recovery runs that just restart a server). */
   readonly skipVerification?: boolean;
+  /**
+   * Compressed project memory injected as the second LLM message (after system,
+   * before goal). Built by project-context-builder.ts from .nura/ files.
+   * Only used on fresh runs (ignored if initialMessages is provided).
+   */
+  readonly memoryContext?: string;
 }
 
 export interface AgentLoopResult {
@@ -72,10 +78,20 @@ export interface AgentLoopResult {
 export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResult> {
   const maxSteps = input.maxSteps ?? 25;
   const resolvedSystemPrompt = buildSystemPrompt(input.systemPrompt) + "\n\n" + TOOL_REFERENCE;
-  const messages: ToolMessage[] = input.initialMessages ?? [
-    { role: "system", content: resolvedSystemPrompt },
-    { role: "user",   content: `Project ID: ${input.projectId}\nGoal:\n${input.goal}` },
-  ];
+  // On fresh runs: [system, memory_context?, goal]
+  // On continuations: initialMessages already contains compressed history
+  const messages: ToolMessage[] = input.initialMessages ?? (() => {
+    const msgs: ToolMessage[] = [
+      { role: "system", content: resolvedSystemPrompt },
+    ];
+    if (input.memoryContext) {
+      // Inject cross-run project memory before the current goal
+      msgs.push({ role: "user",      content: input.memoryContext });
+      msgs.push({ role: "assistant", content: "I've reviewed the project memory. I'll build on existing work and avoid repeating completed steps." });
+    }
+    msgs.push({ role: "user", content: `Project ID: ${input.projectId}\nGoal:\n${input.goal}` });
+    return msgs;
+  })();
 
   const ctx: ToolContext = {
     projectId: input.projectId,
