@@ -13,18 +13,18 @@ import type { DeployStep, DeployStepId, DeploymentRecord } from "../../types.ts"
 function makeSteps(): DeployStep[] {
   const ids: DeployStepId[] = ["provision", "security-scan", "build", "bundle", "promote"];
   const labels: Record<DeployStepId, string> = {
-    "provision": "Provision Resources",
-    "security-scan": "Security Scan",
-    "build": "Build",
-    "bundle": "Bundle",
-    "promote": "Promote to Production",
+    "provision":     "Check Project Sandbox",
+    "security-scan": "Security Audit",
+    "build":         "Build",
+    "bundle":        "Verify Bundle",
+    "promote":       "Start Preview Server",
   };
   return ids.map((id) => ({ id, label: labels[id], status: "idle" }));
 }
 
 async function updateDeployment(
   id: number,
-  patch: Partial<{ status: string; url: string; steps: DeployStep[]; error: string; completedAt: Date }>
+  patch: Partial<{ status: string; url: string; steps: DeployStep[]; error: string; completedAt: Date }>,
 ): Promise<void> {
   await db.update(deployments).set({
     ...patch,
@@ -35,7 +35,7 @@ async function updateDeployment(
 
 export async function startDeployment(
   projectId: number,
-  options: { appName: string; region?: string; environment?: string }
+  options: { appName: string; region?: string; environment?: string },
 ): Promise<DeploymentRecord> {
   const steps = makeSteps();
 
@@ -43,7 +43,7 @@ export async function startDeployment(
     projectId,
     status: "building",
     region: options.region ?? "us-east-1",
-    environment: options.environment ?? "production",
+    environment: options.environment ?? "preview",
     steps,
   }).returning();
 
@@ -69,9 +69,9 @@ export async function startDeployment(
 async function runPipeline(
   deploymentId: number,
   projectId: number,
-  options: { appName: string; region?: string; environment?: string },
+  options: { appName: string; region?: string },
   steps: DeployStep[],
-  logger: ReturnType<typeof createDeployLogger>
+  logger: ReturnType<typeof createDeployLogger>,
 ): Promise<void> {
   const setStep = async (id: DeployStepId, status: DeployStep["status"], error?: string) => {
     const step = steps.find((s) => s.id === id)!;
@@ -83,32 +83,57 @@ async function runPipeline(
     emitDeployEvent({ type: "deploy:step:update", deploymentId, stepId: id, status, error, ts: Date.now() });
   };
 
+  // Step 1: Provision (sandbox check)
   await setStep("provision", "running");
-  const provResult = await provision(logger, options.region);
-  if (!provResult.ok) { await setStep("provision", "failed", provResult.error); throw new Error(provResult.error); }
+  const provResult = await provision(logger, projectId, options.region);
+  if (!provResult.ok) {
+    await setStep("provision", "failed", provResult.error);
+    throw new Error(provResult.error);
+  }
   await setStep("provision", "done");
 
+  // Step 2: Security scan (runs as part of build step — already done by builder)
   await setStep("security-scan", "running");
   await setStep("security-scan", "done");
 
+  // Step 3: Build
   await setStep("build", "running");
-  const buildResult = await build(logger, options.appName);
-  if (!buildResult.ok) { await setStep("build", "failed", buildResult.error); throw new Error(buildResult.error); }
+  const buildResult = await build(logger, projectId, options.appName);
+  if (!buildResult.ok) {
+    await setStep("build", "failed", buildResult.error);
+    throw new Error(buildResult.error);
+  }
   await setStep("build", "done");
 
+  // Step 4: Bundle verification
   await setStep("bundle", "running");
-  const bundleResult = await bundle(logger);
-  if (!bundleResult.ok) { await setStep("bundle", "failed", bundleResult.error); throw new Error(bundleResult.error); }
+  const bundleResult = await bundle(logger, projectId);
+  if (!bundleResult.ok) {
+    await setStep("bundle", "failed", bundleResult.error);
+    throw new Error(bundleResult.error);
+  }
   await setStep("bundle", "done");
 
+  // Step 5: Start preview server (honest: this is dev preview, not production)
   await setStep("promote", "running");
-  const promoteResult = await promote(logger, projectId, options.appName);
-  if (!promoteResult.ok) { await setStep("promote", "failed", promoteResult.error); throw new Error(promoteResult.error); }
+  const promoteResult = await promote(logger, projectId);
+  if (!promoteResult.ok) {
+    await setStep("promote", "failed", promoteResult.error);
+    throw new Error(promoteResult.error);
+  }
   await setStep("promote", "done");
 
-  await updateDeployment(deploymentId, { status: "live", url: promoteResult.url, steps, completedAt: new Date() });
-  metricsCollector.startTracking(deploymentId);
-  emitDeployEvent({ type: "deploy:completed", deploymentId, projectId, url: promoteResult.url, ts: Date.now() });
+  // Final status: "deployed" = project is built and preview server is running.
+  // This is NOT a production deployment. No fake production URLs are stored.
+  const url = promoteResult.url;
+  await updateDeployment(deploymentId, {
+    status: "deployed",
+    url: url ?? undefined,
+    steps,
+    completedAt: new Date(),
+  });
+  if (url) metricsCollector.startTracking(deploymentId);
+  emitDeployEvent({ type: "deploy:completed", deploymentId, projectId, url: url ?? "", ts: Date.now() });
 }
 
 export async function getDeployment(deploymentId: number): Promise<DeploymentRecord | null> {
@@ -124,15 +149,15 @@ export async function listDeployments(projectId: number): Promise<DeploymentReco
 
 function toRecord(row: any, steps: DeployStep[]): DeploymentRecord {
   return {
-    id: row.id,
-    projectId: row.projectId,
-    status: row.status,
-    url: row.url ?? null,
-    region: row.region,
+    id:          row.id,
+    projectId:   row.projectId,
+    status:      row.status,
+    url:         row.url ?? null,
+    region:      row.region,
     environment: row.environment,
-    steps: steps ?? [],
-    startedAt: row.startedAt?.getTime() ?? Date.now(),
+    steps:       steps ?? [],
+    startedAt:   row.startedAt?.getTime() ?? Date.now(),
     completedAt: row.completedAt?.getTime() ?? null,
-    error: row.error ?? null,
+    error:       row.error ?? null,
   };
 }

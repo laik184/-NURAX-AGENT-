@@ -1,50 +1,60 @@
+import { stat } from "fs/promises";
+import * as path from "path";
+import { getProjectDir } from "../../../infrastructure/sandbox/sandbox.util.ts";
 import type { DeployLogger } from "../logs/deploy-logger.ts";
 
 export interface ProvisionResult {
   ok: boolean;
-  instanceId: string;
-  region: string;
-  cpu: string;
-  memoryMb: number;
+  projectDir: string;
+  hasPackageJson: boolean;
+  hasDependencies: boolean;
   error?: string;
 }
 
-const REGIONS: Record<string, string> = {
-  "us-east-1":      "US East (N. Virginia)",
-  "us-west-2":      "US West (Oregon)",
-  "eu-west-1":      "Europe (Ireland)",
-  "ap-southeast-1": "Asia Pacific (Singapore)",
-};
-
 export async function provision(
   logger: DeployLogger,
-  region: string = "us-east-1"
+  projectId: number,
+  _region?: string,
 ): Promise<ProvisionResult> {
-  const regionLabel = REGIONS[region] ?? region;
-  logger.info("Starting deployment pipeline...");
+  const projectDir = getProjectDir(projectId);
+  logger.info("Checking project sandbox...");
 
-  await delay(400);
-  logger.info(`Allocating compute resources in ${regionLabel}...`);
+  let dirExists = false;
+  try {
+    await stat(projectDir);
+    dirExists = true;
+  } catch {
+    const msg = `Project sandbox directory not found: ${projectDir}`;
+    logger.error(msg);
+    return { ok: false, projectDir, hasPackageJson: false, hasDependencies: false, error: msg };
+  }
 
-  await delay(600);
-  logger.info("Configuring networking and load balancer...");
+  let hasPackageJson = false;
+  try {
+    await stat(path.join(projectDir, "package.json"));
+    hasPackageJson = true;
+    logger.info("Found package.json.");
+  } catch {
+    const msg = "No package.json found in project directory — cannot build.";
+    logger.error(msg);
+    return { ok: false, projectDir, hasPackageJson: false, hasDependencies: false, error: msg };
+  }
 
-  await delay(500);
-  logger.info("Attaching persistent storage volumes...");
+  let hasDependencies = false;
+  try {
+    await stat(path.join(projectDir, "node_modules"));
+    hasDependencies = true;
+    logger.info("Dependencies directory found.");
+  } catch {
+    logger.warn("node_modules not found. Run npm install before deploying.");
+  }
 
-  await delay(400);
-  logger.success("Resources provisioned successfully.");
+  if (!hasDependencies) {
+    const msg = "Dependencies not installed. Run npm install or npm ci first.";
+    logger.error(msg);
+    return { ok: false, projectDir, hasPackageJson, hasDependencies: false, error: msg };
+  }
 
-  const instanceId = `inst-${Math.random().toString(36).slice(2, 10)}`;
-  return {
-    ok: true,
-    instanceId,
-    region,
-    cpu: "0.5 vCPU",
-    memoryMb: 512,
-  };
-}
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  logger.success("Project sandbox ready.");
+  return { ok: true, projectDir, hasPackageJson, hasDependencies };
 }

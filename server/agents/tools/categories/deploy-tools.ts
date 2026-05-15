@@ -1,8 +1,14 @@
 import { spawn } from "child_process";
 import { getProjectDir } from "../../../infrastructure/sandbox/sandbox.util.ts";
+import { runtimeManager } from "../../../infrastructure/runtime/runtime-manager.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 
-function runCmd(cmd: string, args: string[], cwd: string, signal?: AbortSignal): Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number }> {
+function runCmd(
+  cmd: string,
+  args: string[],
+  cwd: string,
+  signal?: AbortSignal,
+): Promise<{ ok: boolean; stdout: string; stderr: string; exitCode: number }> {
   return new Promise((resolve) => {
     let stdout = "";
     let stderr = "";
@@ -17,48 +23,57 @@ function runCmd(cmd: string, args: string[], cwd: string, signal?: AbortSignal):
 
 export const deployPublish: Tool = {
   name: "deploy_publish",
-  description: "Build and deploy the project. Runs the build script and reports the deployment URL.",
+  description:
+    "Build the project and report the result. " +
+    "NOTE: This tool only runs the build — it does NOT push to a production host. " +
+    "Production deployment requires the platform's Deploy button.",
   parameters: {
     type: "object",
     properties: {
-      build_command: { type: "string", description: "Build command (default: npm run build)" },
-      deploy_target: { type: "string", description: "Deploy target (replit|vercel|netlify — default: replit)" },
+      build_command: {
+        type: "string",
+        description: "Build command (default: npm run build)",
+      },
     },
   },
+
   async run(args, ctx: ToolContext): Promise<ToolResult> {
     const projectDir = getProjectDir(ctx.projectId);
-    const target = (args.deploy_target as string) || "replit";
-    const steps: Array<{ step: string; ok: boolean; output: string }> = [];
-
     const buildCmd = (args.build_command as string) || "npm run build";
     const [cmd, ...cmdArgs] = buildCmd.split(" ");
+
     const buildResult = await runCmd(cmd, cmdArgs, projectDir, ctx.signal);
-    steps.push({ step: "build", ok: buildResult.ok, output: buildResult.stdout + buildResult.stderr });
+    const buildStep = {
+      step: "build",
+      ok: buildResult.ok,
+      output: buildResult.stdout + buildResult.stderr,
+    };
 
     if (!buildResult.ok) {
       return {
         ok: false,
-        result: { steps },
-        error: `Build failed: ${buildResult.stderr.slice(0, 500)}`,
+        result: { steps: [buildStep] },
+        error: `Build failed (exit ${buildResult.exitCode}): ${buildResult.stderr.slice(0, 500)}`,
       };
     }
 
-    let deployUrl = "";
-    if (target === "replit") {
-      deployUrl = process.env.REPLIT_DEV_DOMAIN
-        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
-        : "https://your-app.replit.app";
-      steps.push({ step: "deploy", ok: true, output: `Deployed to Replit: ${deployUrl}` });
-    }
+    const previewUrl = runtimeManager.isRunning(ctx.projectId)
+      ? runtimeManager.previewUrl(ctx.projectId)
+      : null;
 
     return {
       ok: true,
       result: {
-        deployed: true,
-        target,
-        deployUrl,
-        steps,
-        message: `Successfully deployed to ${target}. URL: ${deployUrl}`,
+        built: true,
+        deployed: false,
+        deploymentSupported: false,
+        previewUrl,
+        steps: [buildStep],
+        message:
+          "Build completed successfully. " +
+          "This environment does not support automated production deployment — " +
+          "use the platform Deploy button to publish to a live URL. " +
+          (previewUrl ? `Dev preview available at: ${previewUrl}` : "Start the server to get a preview URL."),
       },
     };
   },
