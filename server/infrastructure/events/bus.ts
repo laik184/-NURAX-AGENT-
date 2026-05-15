@@ -52,6 +52,14 @@ export interface RuntimeObservationEvent {
   ts:           number;
 }
 
+export interface DebugLifecycleEvent {
+  projectId:  number;
+  sessionId:  string;
+  eventType:  string;
+  payload:    unknown;
+  ts:         number;
+}
+
 type BusEvents = {
   "agent.event":         (event: AgentEvent) => void;
   "run.lifecycle":       (event: RunLifecycleEvent) => void;
@@ -59,6 +67,7 @@ type BusEvents = {
   "file.change":         (event: FileChangeEvent) => void;
   "runtime.verified":    (event: RuntimeVerifiedEvent) => void;
   "runtime.observation": (event: RuntimeObservationEvent) => void;
+  "debug.lifecycle":     (event: DebugLifecycleEvent) => void;
 };
 
 class TypedEventEmitter extends EventEmitter {

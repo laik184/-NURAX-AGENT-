@@ -22,6 +22,7 @@ import { createPreviewProxy } from './server/infrastructure/proxy/preview-proxy.
 import { runtimeManager }          from './server/infrastructure/runtime/runtime-manager.ts';
 import { crashResponder }           from './server/agents/recovery/crash-responder.ts';
 import { observationController }    from './server/runtime/index.ts';
+import { initMemory }               from './server/agents/autonomous-debug/index.ts';
 import { createObservationRouter }  from './server/api/observation.routes.ts';
 import previewPipeline from './server/preview/index.ts';
 import fileExplorerPipeline from './server/file-explorer/index.ts';
@@ -145,6 +146,8 @@ server.listen(PORT, '0.0.0.0', async () => {
   console.log(`[nura-x] Environment: ${process.env.NODE_ENV || 'development'}`);
   // Load persisted runtime state, reconcile against live PIDs, start health monitor
   await runtimeManager.init();
+  // Load autonomous debug recovery memory from disk (survives restarts)
+  await initMemory();
   // Start autonomous crash recovery — subscribes to process.crashed bus events
   crashResponder.start();
   // Start runtime observation — watches logs + probes ports for all project servers
