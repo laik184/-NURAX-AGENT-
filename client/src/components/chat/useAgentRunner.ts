@@ -152,6 +152,33 @@ export function useAgentRunner() {
             setActiveAction(item);
             break;
           }
+          case "recovery.started": {
+            const { attempt, maxAttempts, errorType } = e.payload ?? {};
+            flushGroup();
+            setIsAgentThinking(true);
+            setActiveAction({ type: "action", tool: "recovery.start", content: `Self-healing: detected ${errorType || "crash"} — recovery attempt ${attempt}/${maxAttempts}`, status: "running" });
+            break;
+          }
+          case "recovery.completed": {
+            const { attempt, steps, summary } = e.payload ?? {};
+            setIsAgentThinking(false);
+            setActiveAction(null);
+            flushGroup();
+            setMessages((prev) => [...prev, { role: "agent", content: `Server recovered automatically after ${steps} step${steps !== 1 ? "s" : ""} (attempt ${attempt}).\n\n${summary || ""}`.trim(), time: "just now" }]);
+            break;
+          }
+          case "recovery.failed": {
+            const { attempt, maxAttempts, reason } = e.payload ?? {};
+            setIsAgentThinking(false);
+            setActiveAction(null);
+            flushGroup();
+            const isGivingUp = attempt >= maxAttempts;
+            const msg = isGivingUp
+              ? `Automatic recovery failed after ${maxAttempts} attempts. Please check the server logs and fix the issue manually.\n\nLast error: ${reason || "unknown"}`
+              : `Recovery attempt ${attempt}/${maxAttempts} failed — will retry after cooldown.\n\nReason: ${reason || "unknown"}`;
+            setMessages((prev) => [...prev, { role: "agent", content: msg, time: "just now" }]);
+            break;
+          }
           case "plan.created": {
             const { phases, complexity, appType, phaseList, risks } = e.payload ?? {};
             if (phases && Array.isArray(phaseList) && phaseList.length > 0) {
