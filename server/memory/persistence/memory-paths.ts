@@ -5,9 +5,11 @@
  *
  * Layout:
  *   .data/sandboxes/:projectId/.nura/
- *     context.md          — human-readable project narrative (updated each run)
- *     run-history.jsonl   — one JSON line per completed run
- *     failures.json       — rolling last-10 failure entries
+ *     context.md        — rolling run log (one line per run)
+ *     architecture.md   — evolving architecture narrative (human-readable)
+ *     run-history.jsonl — one JSON line per completed run
+ *     decisions.json    — rolling last-20 architecture decisions
+ *     failures.json     — rolling last-10 failure entries
  *
  * Ownership: memory/persistence — pure path helpers, no I/O.
  */
@@ -25,8 +27,16 @@ export function getContextPath(projectId: number): string {
   return path.join(getMemoryDir(projectId), "context.md");
 }
 
+export function getArchitecturePath(projectId: number): string {
+  return path.join(getMemoryDir(projectId), "architecture.md");
+}
+
 export function getRunHistoryPath(projectId: number): string {
   return path.join(getMemoryDir(projectId), "run-history.jsonl");
+}
+
+export function getDecisionsPath(projectId: number): string {
+  return path.join(getMemoryDir(projectId), "decisions.json");
 }
 
 export function getFailuresPath(projectId: number): string {

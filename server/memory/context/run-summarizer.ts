@@ -3,14 +3,14 @@
  *
  * Post-run: extract a structured summary and persist it to .nura/.
  *
- * Called by tool-loop.executor.ts immediately after runAgentLoopWithContinuation
- * resolves. Deterministic — no LLM calls.
+ * Called by MemoryManager.saveRunSummary() after each agent loop completes.
+ * Deterministic — no LLM calls.
  *
  * Responsibilities:
- *   1. Build a RunSummary from the loop result
- *   2. Append it to run-history.jsonl
- *   3. If failed, append a FailureEntry to failures.json
- *   4. Update context.md with a short run log line
+ *   1. Build a RunSummary → run-history.jsonl
+ *   2. Update context.md with a compact run line
+ *   3. If failed → append to failures.json
+ *   4. If success → append to decisions.json + update architecture.md
  *
  * Ownership: memory/context — summarization logic only.
  * Delegates all I/O to memory-store.ts.
@@ -19,12 +19,14 @@
 import {
   appendRunSummary,
   appendFailure,
+  appendDecision,
   readContextMd,
   writeContextMd,
+  readArchitectureMd,
+  writeArchitectureMd,
 } from "../persistence/memory-store.ts";
-import type { RunSummary, FailureEntry } from "../types.ts";
+import type { RunSummary, FailureEntry, ArchitectureDecision } from "../types.ts";
 
-/** Minimal view of an AgentLoopResult needed for summarization. */
 export interface SummarizableResult {
   success:    boolean;
   steps:      number;
@@ -33,37 +35,43 @@ export interface SummarizableResult {
   error?:     string;
 }
 
-// ─── Context.md helpers ───────────────────────────────────────────────────────
+// ─── context.md ───────────────────────────────────────────────────────────────
 
 const MAX_CONTEXT_CHARS = 4_000;
 
-function buildRunLine(summary: RunSummary): string {
-  const date   = new Date(summary.ts).toISOString().slice(0, 10);
-  const status = summary.success ? "✓" : "✗";
-  const goal   = summary.goal.slice(0, 120);
-  const text   = summary.summary.slice(0, 200);
-  return `[${date}] ${status} ${goal}\n   → ${text}`;
+function buildRunLine(s: RunSummary): string {
+  const date = new Date(s.ts).toISOString().slice(0, 10);
+  const icon = s.success ? "✓" : "✗";
+  return `[${date}] ${icon} ${s.goal.slice(0, 100)}\n   → ${s.summary.slice(0, 180)}`;
 }
 
-async function updateContextMd(
-  projectId: number,
-  runLine:   string,
-): Promise<void> {
+async function updateContextMd(projectId: number, runLine: string): Promise<void> {
   let existing = await readContextMd(projectId);
-
-  // First run — seed the file
   if (!existing) {
-    existing = "# Project Run Log\n\nThis file tracks what the agent has built across runs.\n\n## Runs\n";
+    existing = "# Project Run Log\n\nTracks what the agent has built across runs.\n\n## Runs\n";
   }
-
   const updated = existing + "\n" + runLine;
-
-  // Prune if oversized — keep the header + last portion
-  const pruned = updated.length > MAX_CONTEXT_CHARS
-    ? updated.slice(-MAX_CONTEXT_CHARS)
-    : updated;
-
+  const pruned  = updated.length > MAX_CONTEXT_CHARS ? updated.slice(-MAX_CONTEXT_CHARS) : updated;
   await writeContextMd(projectId, pruned);
+}
+
+// ─── architecture.md ──────────────────────────────────────────────────────────
+
+const MAX_ARCH_CHARS = 5_000;
+const ARCH_HEADER = "# Architecture Decisions\n\nKey decisions made across agent runs.\n\n";
+
+async function updateArchitectureMd(
+  projectId: number,
+  decision:  ArchitectureDecision,
+): Promise<void> {
+  let existing = await readArchitectureMd(projectId);
+  if (!existing) existing = ARCH_HEADER;
+
+  const date = new Date(decision.ts).toISOString().slice(0, 10);
+  const line = `## [${date}] ${decision.goal.slice(0, 80)}\n${decision.summary.slice(0, 300)}\n`;
+  const updated = existing + "\n" + line;
+  const pruned  = updated.length > MAX_ARCH_CHARS ? ARCH_HEADER + updated.slice(-MAX_ARCH_CHARS) : updated;
+  await writeArchitectureMd(projectId, pruned);
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
@@ -75,9 +83,10 @@ export async function summarizeAndPersist(
   result:    SummarizableResult,
 ): Promise<void> {
   try {
+    const ts = Date.now();
     const summary: RunSummary = {
       runId,
-      ts:         Date.now(),
+      ts,
       goal,
       summary:    result.summary.slice(0, 500),
       success:    result.success,
@@ -85,24 +94,32 @@ export async function summarizeAndPersist(
       failReason: result.success ? undefined : (result.error ?? result.summary).slice(0, 300),
     };
 
-    // Fire all writes in parallel — none depend on each other
     const writes: Promise<void>[] = [
       appendRunSummary(projectId, summary),
       updateContextMd(projectId, buildRunLine(summary)),
     ];
 
-    if (!result.success) {
+    if (result.success) {
+      const decision: ArchitectureDecision = {
+        runId,
+        ts,
+        goal,
+        summary: result.summary.slice(0, 400),
+      };
+      writes.push(appendDecision(projectId, decision));
+      writes.push(updateArchitectureMd(projectId, decision));
+    } else {
       const failure: FailureEntry = {
         runId,
-        ts:     summary.ts,
+        ts,
         goal,
-        reason: summary.failReason ?? "Unknown failure",
+        reason: (summary.failReason ?? "Unknown failure"),
       };
       writes.push(appendFailure(projectId, failure));
     }
 
     await Promise.all(writes);
   } catch {
-    // Memory write failures must NEVER crash the agent run
+    // Memory writes must NEVER crash the agent run
   }
 }

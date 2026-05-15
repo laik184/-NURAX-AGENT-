@@ -27,10 +27,23 @@ export interface FailureEntry {
   reason:  string;
 }
 
+// ─── Architecture decision (one entry per successful run, in decisions.json) ──
+
+export interface ArchitectureDecision {
+  runId:   string;
+  ts:      number;
+  /** The user goal that drove this decision */
+  goal:    string;
+  /** Concise description of what was built / architectural choice made */
+  summary: string;
+}
+
 // ─── Project memory snapshot (in-memory representation of .nura/ files) ──────
 
 export interface ProjectMemory {
-  contextMd:    string;        // content of context.md (project narrative)
-  recentRuns:   RunSummary[];  // last N runs from run-history.jsonl
-  failures:     FailureEntry[]; // last N failures
+  contextMd:      string;               // content of context.md (run log)
+  architectureMd: string;               // content of architecture.md (decisions narrative)
+  recentRuns:     RunSummary[];         // last N runs from run-history.jsonl
+  recentDecisions: ArchitectureDecision[]; // last N decisions from decisions.json
+  failures:       FailureEntry[];       // last N failures
 }

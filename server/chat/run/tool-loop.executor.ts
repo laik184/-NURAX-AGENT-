@@ -5,23 +5,29 @@
  *
  * Uses runAgentLoopWithContinuation so that when the agent hits max_steps,
  * it automatically compresses context and continues rather than failing
- * permanently.  The continuation manager handles all retry/event logic;
- * this file owns only the run lifecycle (sandbox setup, DB, SSE lifecycle).
+ * permanently.
  *
- * ── Memory integration ────────────────────────────────────────────────────────
- * Before the loop starts:
- *   - buildProjectContext() reads .nura/ files from the project sandbox
- *   - If memory exists, injects it as memoryContext into AgentLoopInput
+ * ── Memory integration (A8 + A9) ─────────────────────────────────────────────
+ * BEFORE the loop:
+ *   MemoryManager.loadContext() reads .nura/ files and returns a compressed
+ *   context string that is injected into the LLM as memoryContext.
+ *   Returns null on the very first run for a project (no-op).
  *
- * After the loop ends:
- *   - summarizeAndPersist() extracts a structured RunSummary and writes to
- *     .nura/run-history.jsonl, .nura/context.md, .nura/failures.json
+ * AFTER the loop:
+ *   MemoryManager.saveRunSummary() writes to:
+ *     .nura/run-history.jsonl  — structured run record
+ *     .nura/context.md         — rolling run log
+ *     .nura/architecture.md    — architecture decisions (successful runs)
+ *     .nura/decisions.json     — structured decision history
+ *     .nura/failures.json      — failure entries (failed runs)
+ *
+ *   Fire-and-forget — memory writes never block or crash the agent run.
  */
 
 import { runAgentLoopWithContinuation } from "../../agents/core/tool-loop/index.ts";
 import { ensureProjectDir }             from "../../infrastructure/sandbox/sandbox.util.ts";
 import { emitAgentEvent, withRunLifecycle } from "./run-lifecycle.ts";
-import { buildProjectContext, summarizeAndPersist } from "../../memory/index.ts";
+import { MemoryManager }                from "../../memory/index.ts";
 import type { RunHandle, RunInput }     from "./types.ts";
 
 const DEFAULT_MAX_STEPS        = 25;
@@ -50,9 +56,9 @@ export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Pr
       ? (input.context.maxContinuations as number)
       : DEFAULT_MAX_CONTINUATIONS;
 
-    // ── Load cross-run project memory ────────────────────────────────────────
-    // Returns null on the very first run for this project (no .nura/ yet)
-    const memoryContext = await buildProjectContext(projectId);
+    // ── Load cross-run project memory ─────────────────────────────────────────
+    const memory        = MemoryManager.for(projectId);
+    const memoryContext = await memory.loadContext();
 
     if (memoryContext) {
       emitAgentEvent({
@@ -60,27 +66,29 @@ export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Pr
         projectId,
         phase:     "tool-loop",
         eventType: "agent.thinking" as any,
-        payload:   { text: "[memory] Loaded project context — injecting cross-run memory." },
-        ts:        Date.now(),
+        payload:   {
+          text: `[memory] Project context loaded — architecture, decisions, and run history injected.`,
+        },
+        ts: Date.now(),
       });
     }
 
-    // ── Execute agent loop ───────────────────────────────────────────────────
+    // ── Execute agent loop ────────────────────────────────────────────────────
     const result = await runAgentLoopWithContinuation(
       {
         projectId,
         runId,
-        goal:         input.goal,
-        systemPrompt: input.systemPrompt,
+        goal:          input.goal,
+        systemPrompt:  input.systemPrompt,
         maxSteps,
         memoryContext: memoryContext ?? undefined,
       },
       { maxContinuations },
     );
 
-    // ── Persist run summary to .nura/ ────────────────────────────────────────
+    // ── Persist run summary to .nura/ ─────────────────────────────────────────
     // Fire-and-forget — memory writes must not affect run outcome
-    void summarizeAndPersist(projectId, runId, input.goal, result);
+    void memory.saveRunSummary(runId, input.goal, result);
 
     emitAgentEvent({
       runId,
@@ -88,10 +96,11 @@ export async function executeToolLoopRun(handle: RunHandle, input: RunInput): Pr
       phase:     "tool-loop",
       eventType: result.success ? "phase.completed" : "phase.failed",
       payload:   {
-        steps:      result.steps,
-        stopReason: result.stopReason,
-        summary:    result.summary,
-        error:      result.error,
+        steps:        result.steps,
+        stopReason:   result.stopReason,
+        summary:      result.summary,
+        error:        result.error,
+        memoryLoaded: !!memoryContext,
         memoryWritten: true,
       },
       ts: Date.now(),
