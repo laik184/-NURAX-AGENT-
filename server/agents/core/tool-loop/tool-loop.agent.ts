@@ -22,6 +22,8 @@ export interface AgentLoopInput {
   readonly maxSteps?: number;
   readonly signal?: AbortSignal;
   readonly systemPrompt?: string;
+  /** Pre-built message history supplied by the continuation manager on continuation runs. */
+  readonly initialMessages?: ToolMessage[];
 }
 
 export interface AgentLoopResult {
@@ -30,12 +32,14 @@ export interface AgentLoopResult {
   readonly summary: string;
   readonly stopReason: "complete" | "max_steps" | "no_tool_calls" | "error" | "aborted";
   readonly error?: string;
+  /** Full accumulated message history — only set on stopReason === "max_steps" for the continuation manager. */
+  readonly messages?: ToolMessage[];
 }
 
 export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResult> {
   const maxSteps = input.maxSteps ?? 25;
   const resolvedSystemPrompt = buildSystemPrompt(input.systemPrompt) + "\n\n" + TOOL_REFERENCE;
-  const messages: ToolMessage[] = [
+  const messages: ToolMessage[] = input.initialMessages ?? [
     { role: "system", content: resolvedSystemPrompt },
     { role: "user", content: `Project ID: ${input.projectId}\nGoal:\n${input.goal}` },
   ];
@@ -90,7 +94,6 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResu
     let saw_complete = false;
 
     for (const call of response.toolCalls) {
-      const tool = getTool(call.name);
       let parsedArgs: Record<string, unknown> = {};
       try {
         parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
@@ -135,6 +138,7 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResu
     steps,
     summary: `Reached step limit of ${maxSteps} without completing.`,
     stopReason: "max_steps",
+    messages,
   };
 }
 

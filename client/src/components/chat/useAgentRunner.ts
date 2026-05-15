@@ -106,6 +106,28 @@ export function useAgentRunner() {
             setIsAgentThinking(true);
             setActiveAction({ type: "action", tool: "analysis.think", content: e.payload?.text || `Thinking${e.agentName ? ` (${e.agentName})` : ""}…`, status: "running" });
             break;
+          case "agent.replanning": {
+            const { text, continuationCount, maxContinuations, limitReached } = e.payload ?? {};
+            setIsAgentThinking(true);
+            if (limitReached) {
+              flushGroup();
+              setMessages((prev) => [...prev, { role: "agent", content: `⏹ ${text || "Continuation limit reached."}`, time: "just now" }]);
+              setActiveAction(null);
+            } else {
+              setActiveAction({ type: "action", tool: "plan.replan", content: text || `Re-planning (${continuationCount}/${maxContinuations})…`, status: "running" });
+            }
+            break;
+          }
+          case "agent.context_compressed": {
+            const { originalMessageCount, compressedMessageCount, continuationCount } = e.payload ?? {};
+            setActiveAction({ type: "action", tool: "plan.compress", content: `Context compressed: ${originalMessageCount} → ${compressedMessageCount} messages (run ${continuationCount})`, status: "running" });
+            break;
+          }
+          case "agent.continuation": {
+            const { text, continuationCount, maxContinuations } = e.payload ?? {};
+            setActiveAction({ type: "action", tool: "plan.continue", content: text || `Continuation ${continuationCount}/${maxContinuations}…`, status: "running" });
+            break;
+          }
           case "agent.tool_call": {
             const tool   = e.payload?.tool   || "tool.call";
             const status = e.payload?.status;

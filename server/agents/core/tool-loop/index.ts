@@ -12,3 +12,5 @@
 export { runAgentLoop, TOOL_NAMES } from "./tool-loop.agent.ts";
 export type { AgentLoopInput, AgentLoopResult } from "./tool-loop.agent.ts";
 export { TOOL_REFERENCE } from "./tool-reference.ts";
+export { runAgentLoopWithContinuation } from "./continuation/continuation-manager.ts";
+export type { ContinuationOptions } from "./continuation/continuation-manager.ts";
