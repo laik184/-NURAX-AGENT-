@@ -2,11 +2,46 @@
  * server/tools/registry/tool-types.ts
  *
  * Canonical type definitions for the unified tool registry.
- * All other modules import types from here — single source of truth.
+ * Single source of truth — no re-exports from other layers.
  */
 
-// ── Re-export primitive types from the agent layer ───────────────────────────
-export type { Tool, ToolContext, ToolResult, ToolDef } from "../../agents/tools/types.ts";
+// ── Primitive tool types ──────────────────────────────────────────────────────
+
+export interface ToolContext {
+  projectId: number;
+  runId: string;
+  signal?: AbortSignal;
+}
+
+export interface ToolResult {
+  ok: boolean;
+  result?: unknown;
+  error?: string;
+}
+
+export interface Tool {
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<string, unknown>;
+    required?: string[];
+  };
+  run(args: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult>;
+}
+
+export type ToolDef = {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: {
+      type: "object";
+      properties: Record<string, unknown>;
+      required?: string[];
+    };
+  };
+};
 
 // ── Categories ────────────────────────────────────────────────────────────────
 
@@ -41,7 +76,7 @@ export interface ToolPermissions {
 // ── Registry entry ────────────────────────────────────────────────────────────
 
 export interface RegisteredTool {
-  tool: import("../../agents/tools/types.ts").Tool;
+  tool: Tool;
   category: ToolCategory;
   terminal: boolean;
   defaultTimeoutMs: number;
@@ -69,7 +104,7 @@ export interface ToolMetrics {
   lastCalledAt: number | null;
 }
 
-// ── Orchestrator stats ────────────────────────────────────────────────────────
+// ── Registry stats ────────────────────────────────────────────────────────────
 
 export interface RegistryStats {
   totalTools: number;
