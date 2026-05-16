@@ -2,36 +2,26 @@
  * tool-loop.agent.ts
  *
  * THE LLM TOOL-USE AGENT.
+ * Calls OpenRouter in a step-by-step loop until task_complete or max steps.
  *
- * Calls OpenRouter (llm.chatWithTools) in a step-by-step loop,
- * invoking sandbox tools until task_complete is called or max steps reached.
+ * After every tool call, the ExecutionObserver (T4 fix) appends a structured
+ * [OBSERVATION] block to the tool result so the AI can reason about what happened —
+ * console errors, runtime health, failure class, and recommended next action.
  *
- * ── Verification gate ──────────────────────────────────────────────────────
- * When the LLM calls task_complete, the loop does NOT immediately return
- * success. Instead it runs the verification engine:
- *
- *   1. Check runtime process + logs
- *   2. Check TypeScript errors
- *   3. Check package install failures
- *   4. Check preview HTTP reachability
- *
- * If all checks pass → accept task_complete → return success.
- * If any check fails → replace the task_complete tool result in message
- *   history with { ok: false, issues: [...] } so the LLM sees the failure
- *   and must self-heal before calling task_complete again.
- * After MAX_VERIFICATION_RETRIES failed attempts → allow completion with
- *   a warning so the run does not loop indefinitely.
+ * ── Verification gate ──────────────────────────────────────────────────────────
+ * On task_complete: run verification engine (runtime + TS + preview checks).
+ * Pass → complete. Fail → inject failure so LLM self-heals. Exhaust → warn + done.
  */
 
 import { llm, type ToolMessage }    from "../../../llm/openrouter.client.ts";
-import {
-  TOOLS, TOOL_DEFS, TERMINAL_TOOL_NAMES,
-  type ToolContext, toolOrchestrator,
-}                                    from "../../../tools/orchestrator.ts";
+import { TOOL_DEFS }                from "../../../tools/orchestrator.ts";
+import type { ToolContext }          from "../../../tools/orchestrator.ts";
 import { bus }                       from "../../../infrastructure/events/bus.ts";
 import { buildSystemPrompt }         from "../llm/prompt-builder/agents/system-prompt.agent.js";
 import { TOOL_REFERENCE }            from "./tool-reference.ts";
 import { withRetry }                 from "./retry.ts";
+import { executeToolCall }           from "./tool-call.executor.ts";
+import { executionObserver }         from "../../../tools/observation/index.ts";
 import {
   runVerificationEngine,
   buildVerificationFeedback,
@@ -54,13 +44,7 @@ export interface AgentLoopInput {
   readonly signal?:        AbortSignal;
   readonly systemPrompt?:  string;
   readonly initialMessages?: ToolMessage[];
-  /** Disable verification gate (e.g. recovery runs that just restart a server). */
   readonly skipVerification?: boolean;
-  /**
-   * Compressed project memory injected as the second LLM message (after system,
-   * before goal). Built by project-context-builder.ts from .nura/ files.
-   * Only used on fresh runs (ignored if initialMessages is provided).
-   */
   readonly memoryContext?: string;
 }
 
@@ -78,38 +62,19 @@ export interface AgentLoopResult {
 export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResult> {
   const maxSteps = input.maxSteps ?? 25;
   const resolvedSystemPrompt = buildSystemPrompt(input.systemPrompt) + "\n\n" + TOOL_REFERENCE;
-  // On fresh runs: [system, memory_context?, goal]
-  // On continuations: initialMessages already contains compressed history
-  const messages: ToolMessage[] = input.initialMessages ?? (() => {
-    const msgs: ToolMessage[] = [
-      { role: "system", content: resolvedSystemPrompt },
-    ];
-    if (input.memoryContext) {
-      // Inject cross-run project memory before the current goal
-      msgs.push({ role: "user",      content: input.memoryContext });
-      msgs.push({ role: "assistant", content: "I've reviewed the project memory. I'll build on existing work and avoid repeating completed steps." });
-    }
-    msgs.push({ role: "user", content: `Project ID: ${input.projectId}\nGoal:\n${input.goal}` });
-    return msgs;
-  })();
 
-  const ctx: ToolContext = {
-    projectId: input.projectId,
-    runId:     input.runId,
-    signal:    input.signal,
-  };
+  const messages: ToolMessage[] = input.initialMessages ?? buildInitialMessages(
+    resolvedSystemPrompt, input.projectId, input.goal, input.memoryContext,
+  );
 
-  // One retry controller per run — tracks verification attempt count
-  const retryCtrl = input.skipVerification
-    ? null
-    : getOrCreateRetryController(input.runId);
+  const ctx: ToolContext = { projectId: input.projectId, runId: input.runId, signal: input.signal };
+  const retryCtrl = input.skipVerification ? null : getOrCreateRetryController(input.runId);
 
   emit(input.runId, "agent.thinking", "tool-loop", {
     text: `Starting agent loop for: ${input.goal.slice(0, 200)}`,
   });
 
-  let steps       = 0;
-  let lastSummary = "";
+  let steps = 0, lastSummary = "";
 
   try {
     while (steps < maxSteps) {
@@ -120,7 +85,7 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResu
       steps++;
       emit(input.runId, "agent.thinking", "tool-loop", { step: steps, text: `Step ${steps}: thinking…` });
 
-      // ── LLM call with retry ──────────────────────────────────────────────
+      // ── LLM call ──────────────────────────────────────────────────────────
       let response: Awaited<ReturnType<typeof llm.chatWithTools>>;
       try {
         response = await withRetry(
@@ -147,85 +112,50 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResu
         role: "assistant",
         content: response.content || "",
         tool_calls: response.toolCalls.map((tc) => ({
-          id:       tc.id,
-          type:     "function" as const,
+          id: tc.id, type: "function" as const,
           function: { name: tc.name, arguments: tc.arguments },
         })),
       });
 
       let saw_complete = false;
 
-      // ── Tool call loop ───────────────────────────────────────────────────
+      // ── Execute all tool calls for this step ──────────────────────────────
       for (const call of response.toolCalls) {
-        let parsedArgs: Record<string, unknown> = {};
-        try {
-          parsedArgs = call.arguments ? JSON.parse(call.arguments) : {};
-        } catch {
-          const err = `Tool ${call.name}: invalid JSON arguments`;
-          emit(input.runId, "agent.tool_call", "tool-loop", { tool: call.name, status: "error", error: err });
-          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: false, error: err }) });
-          continue;
+        const output = await executeToolCall({
+          callId: call.id, name: call.name, args: call.arguments, ctx,
+        });
+
+        messages.push({ role: "tool", tool_call_id: call.id, content: output.content });
+
+        // ── Verification gate — only on terminal (task_complete) ───────────
+        if (!output.isTerminal) continue;
+        const summary = (output.parsedArgs["summary"] as string) || "Task complete.";
+
+        if (!retryCtrl) {
+          saw_complete = true; lastSummary = summary; continue;
         }
 
-        if (!toolOrchestrator.has(call.name)) {
-          const err = `Unknown tool: ${call.name}`;
-          emit(input.runId, "agent.tool_call", "tool-loop", { tool: call.name, status: "error", error: err });
-          messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ ok: false, error: err }) });
-          continue;
-        }
+        emitVerificationStarted(input.projectId, input.runId);
+        const report = await runVerificationEngine(input.projectId, input.runId);
 
-        const exec     = await toolOrchestrator.execute(call.name, parsedArgs, ctx);
-        const resultJson = JSON.stringify(exec);
-        const trimmed  = resultJson.length > 10_000
-          ? resultJson.slice(0, 5000) + " ... [truncated] ... " + resultJson.slice(-2000)
-          : resultJson;
-
-        messages.push({ role: "tool", tool_call_id: call.id, content: trimmed });
-
-        // ── Verification gate — only on task_complete ──────────────────────
-        if (TERMINAL_TOOL_NAMES.has(call.name) && exec.ok) {
-          const summary = (parsedArgs.summary as string) || "Task complete.";
-
-          if (!retryCtrl) {
-            // Verification skipped (recovery runs, etc.)
-            saw_complete = true;
-            lastSummary  = summary;
-            continue;
-          }
-
-          emitVerificationStarted(input.projectId, input.runId);
-          const report = await runVerificationEngine(input.projectId, input.runId);
-
-          if (report.passed) {
-            // ✅ All checks passed — accept completion
-            emitVerificationPassed(report);
-            saw_complete = true;
-            lastSummary  = summary;
-          } else if (retryCtrl.exhausted) {
-            // ⚠️ Max retries reached — complete with warning to avoid infinite loop
-            emitVerificationExhausted(input.projectId, input.runId, retryCtrl.maxRetries);
-            const exhaustedContent = buildExhaustedFeedback(report, retryCtrl.maxRetries);
-            // Replace last tool message with exhausted feedback
-            messages[messages.length - 1] = {
-              role: "tool",
-              tool_call_id: call.id,
-              content: exhaustedContent,
-            };
-            saw_complete = true;
-            lastSummary  = `${summary} (completed with verification warnings — see issues)`;
-          } else {
-            // ❌ Verification failed — inject failure back so LLM self-heals
-            const attempt  = retryCtrl.recordAttempt();
-            emitVerificationFailed(report, attempt);
-            const failContent = buildVerificationFeedback(report, attempt, retryCtrl.maxRetries);
-            // Replace last tool message: task_complete appears as "failed"
-            messages[messages.length - 1] = {
-              role: "tool",
-              tool_call_id: call.id,
-              content: failContent,
-            };
-            // saw_complete stays false → loop continues → LLM must fix issues
-          }
+        if (report.passed) {
+          emitVerificationPassed(report);
+          saw_complete = true; lastSummary = summary;
+        } else if (retryCtrl.exhausted) {
+          emitVerificationExhausted(input.projectId, input.runId, retryCtrl.maxRetries);
+          messages[messages.length - 1] = {
+            role: "tool", tool_call_id: call.id,
+            content: buildExhaustedFeedback(report, retryCtrl.maxRetries),
+          };
+          saw_complete = true;
+          lastSummary = `${summary} (completed with verification warnings)`;
+        } else {
+          const attempt = retryCtrl.recordAttempt();
+          emitVerificationFailed(report, attempt);
+          messages[messages.length - 1] = {
+            role: "tool", tool_call_id: call.id,
+            content: buildVerificationFeedback(report, attempt, retryCtrl.maxRetries),
+          };
         }
       }
 
@@ -234,33 +164,32 @@ export async function runAgentLoop(input: AgentLoopInput): Promise<AgentLoopResu
       }
     }
 
-    return {
-      success:    false,
-      steps,
-      summary:    `Reached step limit of ${maxSteps} without completing.`,
-      stopReason: "max_steps",
-      messages,
-    };
+    return { success: false, steps, summary: `Reached step limit of ${maxSteps}.`, stopReason: "max_steps", messages };
 
   } finally {
-    // Always release per-run retry state to avoid memory leak
     releaseRetryController(input.runId);
+    executionObserver.release(input.runId);   // T4: release per-run observation memory
   }
 }
 
-// ─── Emit helper ──────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function buildInitialMessages(
+  systemPrompt: string, projectId: number, goal: string, memoryContext?: string,
+): ToolMessage[] {
+  const msgs: ToolMessage[] = [{ role: "system", content: systemPrompt }];
+  if (memoryContext) {
+    msgs.push({ role: "user",      content: memoryContext });
+    msgs.push({ role: "assistant", content: "I've reviewed the project memory. I'll build on existing work." });
+  }
+  msgs.push({ role: "user", content: `Project ID: ${projectId}\nGoal:\n${goal}` });
+  return msgs;
+}
 
 function emit(runId: string, eventType: string, phase: string, payload: unknown): void {
-  bus.emit("agent.event", {
-    runId,
-    eventType: eventType as any,
-    phase,
-    ts:      Date.now(),
-    payload,
-  });
+  bus.emit("agent.event", { runId, eventType: eventType as any, phase, ts: Date.now(), payload });
 }
 
 // ─── Re-exports ───────────────────────────────────────────────────────────────
 
-export const TOOL_NAMES = TOOLS.map((t) => t.name);
-export { toolOrchestrator };
+export { TOOL_DEFS as TOOL_NAMES };
