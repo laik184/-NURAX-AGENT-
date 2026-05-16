@@ -24,6 +24,7 @@ import { crashResponder }           from './server/agents/recovery/crash-respond
 import { observationController }    from './server/runtime/index.ts';
 import { initMemory }               from './server/agents/autonomous-debug/index.ts';
 import { createObservationRouter }  from './server/api/observation.routes.ts';
+import { createToolsRouter }         from './server/api/tools.routes.ts';
 import previewPipeline from './server/preview/index.ts';
 import fileExplorerPipeline from './server/file-explorer/index.ts';
 import consolePipeline from './server/console/index.ts';
@@ -60,6 +61,7 @@ app.use('/api/publishing', createPublishingRouter());
 app.use('/api/folders', createFoldersRouter());
 app.use('/api/inventory', createInventoryRouter());
 app.use('/api/observation', createObservationRouter());
+app.use('/api/tools', createToolsRouter());
 app.use('/api/chat', chatOrchestrator.buildChatRouter());
 
 // Real runtime endpoints (project run/stop/restart, packages, git, screenshot)

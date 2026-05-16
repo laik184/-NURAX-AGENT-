@@ -1,17 +1,9 @@
 import { getProjectDir } from "../../../infrastructure/sandbox/sandbox.util.ts";
 import type { Tool, ToolContext, ToolResult } from "../types.ts";
 import { spawnWithStream } from "../runtime/shell-log-emitter.ts";
+import { ALLOWED_COMMANDS, validateCommand } from "../../../tools/registry/tool-security.ts";
 
-const ALLOWED_COMMANDS = new Set([
-  "npm", "npx", "node", "tsx", "ts-node",
-  "git", "ls", "cat", "head", "tail", "echo",
-  "mkdir", "touch", "grep", "find", "cp", "mv",
-  "python", "python3", "pip", "pip3",
-  "vite", "next", "tsc", "eslint",
-  "drizzle-kit", "prisma",
-  "curl", "wget", "which", "env", "printenv",
-  "chmod", "pwd", "rm", "df", "du", "ps",
-]);
+export { ALLOWED_COMMANDS };
 
 export const shellExec: Tool = {
   name: "shell_exec",
@@ -28,17 +20,15 @@ export const shellExec: Tool = {
   },
 
   async run(args, ctx: ToolContext): Promise<ToolResult> {
-    const command   = args.command as string;
-    const cmdArgs   = (args.args as string[]) || [];
-    const timeoutMs = (args.timeoutMs as number) || 30_000;
+    const command    = args.command as string;
+    const cmdArgs    = (args.args as string[]) || [];
+    const timeoutMs  = (args.timeoutMs as number) || 30_000;
     const projectDir = getProjectDir(ctx.projectId);
-    const cwd = args.cwd ? `${projectDir}/${args.cwd}` : projectDir;
+    const cwd        = args.cwd ? `${projectDir}/${args.cwd}` : projectDir;
 
-    if (!ALLOWED_COMMANDS.has(command)) {
-      return {
-        ok: false,
-        error: `Command '${command}' is not allowed. Allowed: ${[...ALLOWED_COMMANDS].join(", ")}`,
-      };
+    const cmdCheck = validateCommand(command);
+    if (!cmdCheck.valid) {
+      return { ok: false, error: cmdCheck.reason };
     }
 
     const { exitCode, stdout, stderr, timedOut } = await spawnWithStream({
